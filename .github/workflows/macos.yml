@@ -1,0 +1,26 @@
+# Compila a app e o plug-in VST3 para macOS (Apple Silicon) num runner da GitHub.
+# Os ficheiros ficam em "Artifacts" na pagina da execucao.
+name: macOS
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+jobs:
+  build:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compilar
+        run: ./build-mac.sh --no-install
+      - name: Empacotar
+        run: |
+          cd dist
+          ditto -c -k --keepParent ASR-10.app ASR-10-app.zip
+          ditto -c -k --keepParent ASR10.vst3 ASR10-vst3.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ASR10-macOS
+          path: |
+            dist/ASR-10-app.zip
+            dist/ASR10-vst3.zip
+            dist/asr10-cli

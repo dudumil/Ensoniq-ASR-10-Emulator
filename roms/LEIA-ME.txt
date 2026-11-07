@@ -1,0 +1,4 @@
+Coloca aqui:
+  asr-648c-lo-1.5b.bin
+  asr-65e0-hi-1.5b.bin
+  os353.img (imagem da disquete do OS)

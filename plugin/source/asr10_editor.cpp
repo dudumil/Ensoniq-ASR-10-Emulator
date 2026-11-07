@@ -1,4 +1,5 @@
 #include "asr10_editor.h"
+#include "efe_disk.h"
 #include "vstgui/lib/platform/iplatformbitmap.h"
 #include <cstring>
 #include <chrono>
@@ -23,11 +24,16 @@ public:
     DragOperation onDragMove(DragEventData d) override { return has_file(d) ? DragOperation::Copy : DragOperation::None; }
     bool onDrop(DragEventData d) override {
         bool any = false;
+        std::vector<std::string> efes;   // instrument files dropped together go on one floppy
         for (uint32_t i = 0; i < d.drag->getCount(); i++) {
             const void *buf = nullptr; IDataPackage::Type t;
             d.drag->getData(i, buf, t);
-            if (t == IDataPackage::kFilePath && buf) { plug->engine().insert_disk((const char *)buf); any = true; }
+            if (t != IDataPackage::kFilePath || !buf) continue;
+            std::string f = (const char *)buf;
+            if (efe::is_single_file(f)) efes.push_back(f); else plug->engine().insert_disk(f);
+            any = true;
         }
+        if (!efes.empty()) plug->engine().insert_files(efes);
         return any;
     }
 private:

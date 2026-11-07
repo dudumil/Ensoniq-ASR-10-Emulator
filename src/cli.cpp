@@ -1,6 +1,7 @@
 // Headless runner for the ASR-10 emulator: boots, optionally plays MIDI events,
 // renders audio to a WAV file and prints the display.
 #include "asr10.h"
+#include "efe_disk.h"
 #include <cstdio>
 #include <cmath>
 #include <cstdlib>
@@ -94,10 +95,10 @@ int main(int argc, char **argv) {
         else if (a == "--trace-after") trace_after = atof(next().c_str());
         else if (a == "--trace-from") { trace_pc = strtoul(next().c_str(), 0, 16); trace_cnt = atoi(next().c_str()); }
         else if (a == "--note") {   // --note time:note:vel:dur
-            double t; int n, v; double d;
-            if (sscanf(next().c_str(), "%lf:%d:%d:%lf", &t, &n, &v, &d) == 4) {
-                midi.push_back({t, {0x90, (uint8_t)n, (uint8_t)v}});
-                midi.push_back({t + d, {0x80, (uint8_t)n, 0x40}});
+            double t; int n, v, ch = 1; double d;
+            if (sscanf(next().c_str(), "%lf:%d:%d:%lf:%d", &t, &n, &v, &d, &ch) >= 4) {   // [:channel]
+                midi.push_back({t, {(uint8_t)(0x90 | ((ch - 1) & 15)), (uint8_t)n, (uint8_t)v}});
+                midi.push_back({t + d, {(uint8_t)(0x80 | ((ch - 1) & 15)), (uint8_t)n, 0x40}});
             }
         } else if (a == "--key") {   // --key time:note:vel:dur (panel keyboard, note 36..96)
             double t; int n, v; double d;
@@ -206,6 +207,10 @@ int main(int argc, char **argv) {
             bi++;
         }
         for (auto &ins : inserts) if (ins.first >= 0 && ins.first <= now) {
+            if (!ins.second.empty() && efe::is_single_file(ins.second)) {   // .efa/.efe: on a temporary floppy
+                std::string path, label, err = efe::make_disk_file({ ins.second }, true, "asr10-cli-", path, label);
+                if (!err.empty()) fprintf(stderr, "%s\n", err.c_str()); else ins.second = path;
+            }
             if (ins.second.empty()) m.eject_disk(); else m.insert_disk(ins.second);
             ins.first = -1;
         }

@@ -25,7 +25,7 @@ target_include_directories(musashi PUBLIC musashi musashi/softfloat src)
 # --- machine core
 add_library(asr10core STATIC
   src/asr10.cpp src/m68302.cpp src/duart.cpp src/fdc.cpp
-  src/es5506.cpp src/es5510.cpp src/panel.cpp src/scsi.cpp)
+  src/es5506.cpp src/es5510.cpp src/panel.cpp src/scsi.cpp src/efe_disk.cpp)
 target_include_directories(asr10core PUBLIC src musashi)
 target_link_libraries(asr10core PUBLIC musashi)
 

@@ -291,7 +291,12 @@ ATRK PLAY/REC = SCSI, escolhe o REC SCSI DRIVE e o tamanho do REC FILE.
   a janela fica só com o rack. A escolha fica guardada nas definições;
 - o botão do drive ejeta a disquete (gravando antes, se foi alterada); o LED do drive acende com
   o motor;
-- arrasta um ficheiro `.img` para a janela para o inserir no drive.
+- arrasta um ficheiro `.img` para a janela para o inserir no drive;
+- arrasta um ou mais instrumentos `.efa`/`.efe` para a janela: vão para uma disquete temporária
+  (alta densidade se for preciso) que entra no drive; depois é só LOAD como de qualquer disquete;
+- **clique direito numa das setas Up/Down** = as duas setas ao mesmo tempo: o valor salta para o
+  meio da escala (0 em -99…+99, 50 em 0…99), como no aparelho. O mesmo com as duas setas do
+  teclado do PC carregadas juntas.
 
 **Teclado do computador:**
 
@@ -299,7 +304,7 @@ ATRK PLAY/REC = SCSI, escolhe o REC SCSI DRIVE e o tamanho do REC FILE.
 |---|---|
 | 1–8 | Instrument•Track 1–8 (o teclado do PC já não toca notas) |
 | R | RECORD (mantém-no e carrega em Espaço para gravar) |
-| Setas | Up / Down / Left / Right |
+| Setas | Up / Down / Left / Right (Up + Down juntas = meio da escala) |
 | Enter | ENTER•YES |
 | Backspace / Esc | CANCEL•NO |
 | F1–F8 | Instrument•Track 1–8 |

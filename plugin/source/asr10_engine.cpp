@@ -1,4 +1,5 @@
 #include "asr10_engine.h"
+#include "efe_disk.h"
 #include "m68k.h"
 #include <cstring>
 #include <cstdlib>
@@ -174,7 +175,18 @@ void Asr10Engine::save_floppy() {
     if (m && m->fdc.dirty && m->fdc.save()) set_status("Disquete gravada: " + m->fdc.path);
 }
 
+void Asr10Engine::insert_files(const std::vector<std::string> &files) {
+    push(cmd_mx, cmds, [this, files](Asr10 &a) {
+        std::string path, label, err = efe::make_disk_file(files, true, "asr10-", path, label);
+        if (!err.empty()) { set_status(err); return; }
+        if (a.fdc.dirty) a.fdc.save();
+        if (a.insert_disk(path)) { floppy = path; set_status("\"" + label + "\" na disquete: carrega em LOAD para o carregar"); }
+        else set_status("Nao consegui abrir " + path);
+    });
+}
+
 void Asr10Engine::insert_disk(const std::string &path) {
+    if (efe::is_single_file(path)) { insert_files({ path }); return; }
     push(cmd_mx, cmds, [this, path](Asr10 &a) {
         std::error_code ec;
         auto size = fs::file_size(fs::u8path(path), ec);

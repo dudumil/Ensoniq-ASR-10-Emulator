@@ -47,6 +47,7 @@ public:
     void button(int idx, bool down);               // panel button (RackUI index / AUDIO_A / AUDIO_B)
     void analog(int ch, uint16_t v);
     void insert_disk(const std::string &path);     // floppy (or SCSI hard disk when > 2 MB)
+    void insert_files(const std::vector<std::string> &files);   // .efe/.efa files: put on a temporary floppy
     void eject_disk();
     void attach_scsi(const std::string &path);
     void detach_scsi();

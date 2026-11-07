@@ -5,7 +5,7 @@ CFLAGS ?= -O2
 INC = -Imusashi -Isrc
 
 MUSASHI_OBJ = build/m68kcpu.o build/m68kops.o build/m68kdasm.o build/softfloat.o
-CORE_OBJ = build/asr10.o build/m68302.o build/duart.o build/fdc.o build/es5506.o build/es5510.o build/panel.o build/scsi.o
+CORE_OBJ = build/asr10.o build/m68302.o build/duart.o build/fdc.o build/es5506.o build/es5510.o build/panel.o build/scsi.o build/efe_disk.o
 
 all: asr10-cli
 

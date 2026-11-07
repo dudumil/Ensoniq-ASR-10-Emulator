@@ -4,6 +4,7 @@
 #include "asr10.h"
 #include "vfd.h"
 #include "rack_ui.h"
+#include "efe_disk.h"
 #include "ui_text.h"
 #include "native_menu.h"
 #include "win/asr10_icon64.h"
@@ -328,6 +329,9 @@ int main(int argc, char **argv) {
             if (!ec && sz > 2 * 1024 * 1024) scsi_files.push_back(a); else disk = a;
         }
     }
+    // an instrument file (.efe/.efa) given at start: boot from the OS disk, then put it in the drive
+    std::string startup_efe;
+    if (!disk.empty() && efe::is_single_file(disk)) { startup_efe = disk; disk.clear(); }
 
     Asr10 m;
     m.set_ram_mb(ram_mb);
@@ -494,6 +498,8 @@ int main(int argc, char **argv) {
     UiText ui;
     if (!ui.init(R)) { fprintf(stderr, "font textures: %s\n", SDL_GetError()); return 1; }
     SDL_EventState(SDL_DROPFILE, SDL_ENABLE);
+    SDL_EventState(SDL_DROPBEGIN, SDL_ENABLE);
+    SDL_EventState(SDL_DROPCOMPLETE, SDL_ENABLE);
 
     // WAV played into the sampler input (Ctrl+P)
     std::vector<float> wav_in; double wav_rate = 44100; size_t wav_pos = 0;
@@ -848,9 +854,10 @@ int main(int argc, char **argv) {
     int held_ctl = -1;
     { std::lock_guard<std::mutex> g(mmx); for (auto &c : controls) m.analog[c.ch] = ctl_raw(c); }
     int held_button = -1, held_key = -1;
+    bool arrows_both = false;                       // right click on Up/Down: both arrows held
     bool kb_down[KEYS] = {};
     int velocity = 100;
-    std::string status = disk.empty() ? "No disk: drop a .img disk image on the window" : "Disk: " + disk;
+    std::string status = disk.empty() ? "No disk: drop a disk image (.img) or an instrument (.efa/.efe) on the window" : "Disk: " + disk;
     uint32_t status_t = SDL_GetTicks();
 
     auto press_key = [&](int k, bool down, int vel) {
@@ -860,7 +867,21 @@ int main(int argc, char **argv) {
         m.panel.key(k, vel, down);
     };
     // a disk image: SCSI if it is named/sized like one (HD0.img, CD5.iso, > 2 MB), else the floppy drive
+    // Ensoniq single files (.efe/.efa, Giebler format) dropped together go on one temporary
+    // floppy (high density if they need it), which is then put in the drive
+    std::vector<std::string> drop_files;
+    auto insert_files = [&](const std::vector<std::string> &files) {
+        std::string path, label, err = efe::make_disk_file(files, true, "asr10-", path, label);
+        if (!err.empty()) { status = err; status_t = SDL_GetTicks(); return; }
+        if (m.fdc.dirty && !readonly) m.fdc.save();
+        if (m.insert_disk(path))
+            status = files.size() == 1 ? "\"" + label + "\" is on the disk in the drive: press LOAD to load it"
+                                       : std::to_string(files.size()) + " files are on the disk in the drive: press LOAD to load them";
+        else status = "Cannot open " + path;
+        status_t = SDL_GetTicks();
+    };
     auto open_image = [&](const std::string &p) {
+        if (efe::is_single_file(p)) { insert_files({ p }); return; }
         std::string r = m.scsi.attach_file(p);
         if (!r.empty()) { status = r; status_t = SDL_GetTicks(); return; }
         if (m.fdc.dirty && !readonly) m.fdc.save();
@@ -982,11 +1003,16 @@ int main(int argc, char **argv) {
                 }
                 if (!lk.owns_lock()) lk.lock();
                 switch (e.type) {
+                case SDL_DROPBEGIN: drop_files.clear(); break;
                 case SDL_DROPFILE: {
                     std::string p = e.drop.file; SDL_free(e.drop.file);
-                    open_image(p);
+                    if (efe::is_single_file(p)) drop_files.push_back(p);   // collected until the drop is complete
+                    else open_image(p);
                     break;
                 }
+                case SDL_DROPCOMPLETE:
+                    if (!drop_files.empty()) { insert_files(drop_files); drop_files.clear(); }
+                    break;
                 case SDL_MOUSEBUTTONDOWN: {
                     int x = e.button.x, y = e.button.y;
                     {
@@ -995,6 +1021,11 @@ int main(int argc, char **argv) {
                         if (bi == 3) {               // RECORD latches: one click holds it down, the next releases it
                             rec_latched = !rec_latched; m.panel.button(3, rec_latched); break;
                         }
+                        // right click on an arrow = both arrows at once: the OS jumps to the middle of
+                        // the range (0 for -99..+99, 50 for 0..99), as when both are pressed on the unit
+                        if ((bi == 10 || bi == 11) && e.button.button != SDL_BUTTON_LEFT) {
+                            arrows_both = true; m.panel.button(10, true); m.panel.button(11, true); break;
+                        }
                         if (bi >= 0) { held_button = bi; m.panel.button(bi, true); break; }
                         if (H_cur == H) for (int ps = 0; ps < 2; ps++) if (inside(patch_btn[ps], x, y)) { held_button = ps; m.panel.button(ps, true); }
                         if (held_button >= 0) break;
@@ -1002,7 +1033,7 @@ int main(int argc, char **argv) {
                         if (a == RackUI::POWER) { power_held = true; power_down_t = SDL_GetTicks(); break; }
                         if (a == RackUI::EJECT) {
                             if (m.fdc.has_disk()) { save_disk(); m.eject_disk(); status = "Disk ejected"; }
-                            else status = "The drive is empty: drop a disk image (.img/.efe) on the window";
+                            else status = "The drive is empty: drop a disk image (.img) or an instrument (.efa/.efe) on the window";
                             status_t = SDL_GetTicks(); break;
                         }
                         if (a == RackUI::DRIVE) {
@@ -1041,6 +1072,7 @@ int main(int argc, char **argv) {
                         held_ctl = -1;
                     }
                     if (held_button == RackUI::AUDIO_A || held_button == RackUI::AUDIO_B) { m.audio_button[held_button - RackUI::AUDIO_A] = false; held_button = -1; }
+                    if (arrows_both) { m.panel.button(11, false); m.panel.button(10, false); arrows_both = false; }
                     if (held_button >= 0) { m.panel.button(held_button, false); held_button = -1; }
                     if (held_key >= 0) { press_key(held_key, false, 64); held_key = -1; }
                     break;
@@ -1119,6 +1151,7 @@ int main(int argc, char **argv) {
                     ab.first = -0.25;
                 }
             }
+            if (!startup_efe.empty() && emu_t >= 16.0) { insert_files({ startup_efe }); startup_efe.clear(); }
             if (quit_at >= 0 && emu_t >= quit_at) quit = true;
             pv = m.panel;
             fdc_dirty = m.fdc.dirty; has_disk = m.fdc.has_disk(); scsi_fitted = m.scsi_fitted; disk_path = m.fdc.path;
@@ -1144,6 +1177,7 @@ int main(int argc, char **argv) {
         {
             bool held_any[64] = {};
             if (held_button >= 0) held_any[held_button & 63] = true;
+            if (arrows_both) held_any[10] = held_any[11] = true;
             if (rec_latched) held_any[3] = true;
             for (int s2 = 0; s2 < 512; s2++) if (held_kbd_button[s2] >= 0 && held_kbd_button[s2] < 64) held_any[held_kbd_button[s2]] = true;
             RackState rs;

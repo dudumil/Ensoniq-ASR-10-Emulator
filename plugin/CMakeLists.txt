@@ -75,7 +75,7 @@ set(EMU ${CMAKE_CURRENT_SOURCE_DIR}/..)
 add_library(asr10core_pic STATIC
   ${EMU}/musashi/m68kcpu.c ${EMU}/musashi/m68kops.c ${EMU}/musashi/m68kdasm.c ${EMU}/musashi/softfloat/softfloat.c
   ${EMU}/src/asr10.cpp ${EMU}/src/m68302.cpp ${EMU}/src/duart.cpp ${EMU}/src/fdc.cpp
-  ${EMU}/src/es5506.cpp ${EMU}/src/es5510.cpp ${EMU}/src/panel.cpp ${EMU}/src/scsi.cpp)
+  ${EMU}/src/es5506.cpp ${EMU}/src/es5510.cpp ${EMU}/src/panel.cpp ${EMU}/src/scsi.cpp ${EMU}/src/efe_disk.cpp)
 target_include_directories(asr10core_pic PUBLIC ${EMU}/src ${EMU}/musashi ${EMU}/musashi/softfloat)
 set_target_properties(asr10core_pic PROPERTIES POSITION_INDEPENDENT_CODE ON)
 

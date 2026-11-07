@@ -297,15 +297,13 @@ ATRK PLAY/REC = SCSI, escolhe o REC SCSI DRIVE e o tamanho do REC FILE.
 
 | Tecla | Função |
 |---|---|
-| Z S X D C V G B H N J M , L . | uma oitava de teclas, a começar em Dó |
-| Q 2 W 3 E R 5 T 6 Y 7 U I 9 O 0 P | a oitava seguinte |
-| PageUp / PageDown | oitava acima / abaixo |
-| Home / End | velocidade +10 / −10 |
+| 1–8 | Instrument•Track 1–8 (o teclado do PC já não toca notas) |
+| R | RECORD (mantém-no e carrega em Espaço para gravar) |
 | Setas | Up / Down / Left / Right |
 | Enter | ENTER•YES |
 | Backspace / Esc | CANCEL•NO |
 | F1–F8 | Instrument•Track 1–8 |
-| teclado numérico 0–9 | botões 0–9 (ENV1 … TRACK) |
+| teclado numérico 0–9 | botões de página como impressos: 1 Env 1 … 4 Pitch … 9 Layer, 0 Track |
 | Espaço | PLAY |
 | F11 / F12 | Audio Track A / B |
 | F9 | esconder/mostrar o teclado |

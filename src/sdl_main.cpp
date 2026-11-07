@@ -849,7 +849,6 @@ int main(int argc, char **argv) {
     { std::lock_guard<std::mutex> g(mmx); for (auto &c : controls) m.analog[c.ch] = ctl_raw(c); }
     int held_button = -1, held_key = -1;
     bool kb_down[KEYS] = {};
-    int octave = 1;                 // computer keyboard base: C3 (key index 12)
     int velocity = 100;
     std::string status = disk.empty() ? "No disk: drop a .img disk image on the window" : "Disk: " + disk;
     uint32_t status_t = SDL_GetTicks();
@@ -873,25 +872,18 @@ int main(int argc, char **argv) {
         if (m.fdc.save()) { status = "Disk saved: " + m.fdc.path; status_t = SDL_GetTicks(); }
     };
 
-    // computer keyboard -> piano (two rows, like a tracker)
-    auto piano_key = [&](SDL_Keycode kc) -> int {
-        static const char *lower = "zsxdcvgbhnjm,l.;/";
-        static const char *upper = "q2w3er5t6y7ui9o0p[=]";
-        if (kc < 128) {
-            const char *p = strchr(lower, (int)kc);
-            if (p && *p) return octave * 12 + (int)(p - lower);
-            p = strchr(upper, (int)kc);
-            if (p && *p) return octave * 12 + 12 + (int)(p - upper);
-        }
-        return -1;
-    };
     auto shortcut = [&](SDL_Keycode kc) -> int {
         switch (kc) {
         case SDLK_UP: return 10; case SDLK_DOWN: return 11; case SDLK_LEFT: return 16; case SDLK_RIGHT: return 17;
         case SDLK_RETURN: case SDLK_KP_ENTER: return 35;
         case SDLK_BACKSPACE: case SDLK_ESCAPE: return 33;
-        case SDLK_F1: return 2; case SDLK_F2: return 8; case SDLK_F3: return 14; case SDLK_F4: return 20;
-        case SDLK_F5: return 4; case SDLK_F6: return 34; case SDLK_F7: return 28; case SDLK_F8: return 22;
+        // number row 1-8 (and F1-F8) = Instrument/Track buttons 1-8
+        case SDLK_1: case SDLK_F1: return 2; case SDLK_2: case SDLK_F2: return 8;
+        case SDLK_3: case SDLK_F3: return 14; case SDLK_4: case SDLK_F4: return 20;
+        case SDLK_5: case SDLK_F5: return 4; case SDLK_6: case SDLK_F6: return 34;
+        case SDLK_7: case SDLK_F7: return 28; case SDLK_8: case SDLK_F8: return 22;
+        case SDLK_r: return 3;        // RECORD (hold it and press Space for record + play)
+        // numeric keypad = the page buttons, as printed on the keypad (1 = Env 1, 4 = Pitch... 0 = Track)
         case SDLK_KP_1: return 13; case SDLK_KP_2: return 18; case SDLK_KP_3: return 19; case SDLK_KP_4: return 24;
         case SDLK_KP_5: return 25; case SDLK_KP_6: return 30; case SDLK_KP_7: return 31; case SDLK_KP_8: return 36;
         case SDLK_KP_9: return 37; case SDLK_KP_0: return 12;
@@ -1089,10 +1081,6 @@ int main(int argc, char **argv) {
                         }
                         break;
                     }
-                    if (down && kc == SDLK_PAGEUP) { if (octave < 3) octave++; break; }
-                    if (down && kc == SDLK_PAGEDOWN) { if (octave > 0) octave--; break; }
-                    if (down && kc == SDLK_HOME) { velocity = velocity >= 120 ? 127 : velocity + 10; break; }
-                    if (down && kc == SDLK_END) { velocity = velocity <= 20 ? 10 : velocity - 10; break; }
                     if (kc == SDLK_F11 || kc == SDLK_F12) {          // Audio Track A / B
                         int ab = kc == SDLK_F11 ? 0 : 1;
                         m.audio_button[ab] = down;
@@ -1104,11 +1092,6 @@ int main(int argc, char **argv) {
                         if (down) { held_kbd_button[sc] = b; m.panel.button(b, true); }
                         else if (held_kbd_button[sc] >= 0 && held_kbd_button[sc] < 64) { m.panel.button(held_kbd_button[sc], false); held_kbd_button[sc] = -1; }
                         break;
-                    }
-                    int k = piano_key(kc);
-                    if (k >= 0) {
-                        if (down) { held_kbd_button[sc] = 1000 + k; press_key(k, true, velocity); }
-                        else if (held_kbd_button[sc] >= 1000) { press_key(held_kbd_button[sc] - 1000, false, 64); held_kbd_button[sc] = -1; }
                     }
                     break;
                 }
@@ -1217,9 +1200,6 @@ int main(int argc, char **argv) {
                     if (k % 12 == 0) { char n[8]; snprintf(n, sizeof n, "C%d", k / 12 + 2); text_c(r.x + r.w / 2, r.y + r.h - 16, n, 1, 0x707070); }
                 }
             fill(KB_X, KB_Y, KB_W, 3, 0x7a1c14);           // felt strip
-            // computer keyboard range marker
-            { SDL_Rect a = key_rect(octave * 12), b2 = key_rect(octave * 12 + 29 > 60 ? 60 : octave * 12 + 29);
-              fill(a.x, KB_Y - 7, b2.x + b2.w - a.x, 3, 0x3f9bd0); }
 
         }
 

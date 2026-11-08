@@ -1,5 +1,0 @@
-Imagens SCSI com nomes ZuluSCSI:
-  HD0.img   disco rigido no ID 0 (gravavel)
-  CD5.iso   CD-ROM no ID 5 (so leitura)
-  RE1.img / MO2.img  amovivel / magneto-otico
-O ID 3 e o do proprio ASR-10.

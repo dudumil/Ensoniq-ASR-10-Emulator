@@ -14,7 +14,7 @@
 	<key>CFBundleVersion</key><string>${MACOSX_BUNDLE_BUNDLE_VERSION}</string>
 	<key>LSMinimumSystemVersion</key><string>11.0</string>
 	<key>NSHighResolutionCapable</key><true/>
-	<key>NSMicrophoneUsageDescription</key><string>A entrada de áudio é usada para samplar e gravar Audio Tracks.</string>
+	<key>NSMicrophoneUsageDescription</key><string>The audio input is used for sampling and for recording Audio Tracks.</string>
 	<key>LSApplicationCategoryType</key><string>public.app-category.music</string>
 	<key>CFBundleDocumentTypes</key>
 	<array>

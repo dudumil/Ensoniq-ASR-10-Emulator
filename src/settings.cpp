@@ -54,7 +54,7 @@ bool Settings::save() const {
     fprintf(f, "main_out=%d\n", main_pair * 2 + 1);
     for (int i = 0; i < 3; i++) fprintf(f, "aux%d_out=%d\n", i + 1, aux_pair[i] < 0 ? 0 : aux_pair[i] * 2 + 1);
     fprintf(f, "midi_in=%s\nmidi_out=%s\n", midi_in.c_str(), midi_out.c_str());
-    fprintf(f, "# 1 = show the keyboard strip below the panel (F9 / TECLADO button)\nshow_keyboard=%d\n", show_keyboard ? 1 : 0);
+    fprintf(f, "# 1 = show the keyboard strip below the panel (F9 / View > Show Keyboard)\nshow_keyboard=%d\n", show_keyboard ? 1 : 0);
     fprintf(f, "# folder of the SCSI drive images (HD0.img, CD5.iso ...); empty = \"scsi\" next to the program\nscsi_dir=%s\n", scsi_dir.c_str());
     fprintf(f, "# folder of the program (written by it; the VST3 plug-in looks for the ROMs and disks there)\napp_dir=%s\n", app_dir.c_str());
     fclose(f);

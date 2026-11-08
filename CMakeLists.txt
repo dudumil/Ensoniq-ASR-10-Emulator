@@ -88,7 +88,7 @@ if(ASR10_GUI)
     else()
       target_link_libraries(asr10 wmcodecdsp)
     endif()
-    target_link_libraries(asr10 ole32 winmm ksuser mfplat mfuuid dsound uuid comdlg32)
+    target_link_libraries(asr10 ole32 winmm ksuser mfplat mfuuid dsound uuid comdlg32 shell32)
     if(ASR10_ASIO)
       target_compile_definitions(asr10 PRIVATE __WINDOWS_ASIO__)
       target_sources(asr10 PRIVATE third_party/rtaudio/include/asio.cpp third_party/rtaudio/include/asiodrivers.cpp

@@ -169,9 +169,13 @@ O plug-in é um instrumento ("Instrument|Sampler"):
 - **parâmetros**: Volume (o slider do painel) e "Relógio MIDI do host", que envia ao ASR o tempo e o
   transporte do anfitrião (MIDI clock, start/stop, song position) para o sequenciador seguir o projeto;
 - **editor**: o painel do rack (desenhado com o mesmo código da app, a 2× para ecrãs Retina) e uma
-  barra com Disquete…, Ejetar, Disco SCSI…, Desligar SCSI, Reset. Arrastar uma imagem para o painel
-  insere-a (disquete, ou disco SCSI se tiver mais de 2 MB);
-- **projeto**: guarda o volume, a opção do relógio e os caminhos da disquete e dos discos SCSI. Ao abrir o
+  barra com Disquete…, Ejetar, Disco SCSI…, Desligar SCSI, **Pasta SCSI…**, Reset. Arrastar uma imagem
+  para o painel insere-a (disquete, ou disco SCSI se tiver mais de 2 MB); clique direito numa seta
+  Up/Down = as duas setas juntas;
+- **Pasta SCSI…** escolhe a pasta das imagens estilo ZuluSCSI (`HD0.img`, `CD5.iso`…); fica guardada
+  no projeto e também como pasta por omissão para novas instâncias e para a app (`asr10.cfg`). Sem
+  escolha, usa `scsi` na pasta do utilizador (`…/Ensoniq/ASR10emu/scsi`);
+- **projeto**: guarda o volume, a opção do relógio, a pasta SCSI e os caminhos da disquete e dos discos SCSI. Ao abrir o
   projeto o ASR arranca de novo com esses discos (o conteúdo da RAM não é guardado: carrega-se como
   num ASR real).
 
@@ -230,8 +234,11 @@ funcionar e grava-as.
 
 ### SCSI (como num ZuluSCSI)
 
-Põe as imagens numa pasta com os nomes que o ZuluSCSI usa e indica-a com `--scsi-dir pasta`. Se não
-indicares nada, o emulador usa uma pasta `scsi` na pasta de trabalho ou ao lado do executável.
+Põe as imagens numa pasta com os nomes que o ZuluSCSI usa e escolhe-a nas opções (F10/Ctrl+O →
+**SCSI drives → Drive images folder → Choose folder...**), ou indica-a com `--scsi-dir pasta`. A escolha
+fica em `asr10.cfg` (`scsi_dir=`) e é partilhada com o plug-in VST3. Se não houver pasta escolhida, o
+emulador usa uma pasta `scsi` na pasta de trabalho, na pasta das definições ou ao lado do executável.
+Mudar de pasta liga logo as drives novas; reinicia o ASR (Power ~1 s) para o OS as procurar.
 
 | Nome do ficheiro | Dispositivo |
 |---|---|

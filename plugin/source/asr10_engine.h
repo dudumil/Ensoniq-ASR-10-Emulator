@@ -51,12 +51,17 @@ public:
     void eject_disk();
     void attach_scsi(const std::string &path);
     void detach_scsi();
+    // folder of ZuluSCSI-style drive images (HD0.img, CD5.iso ...); "" = the default
+    // (<user folder>/scsi). remember = also the default for new instances and the stand-alone
+    // program (scsi_dir in asr10.cfg)
+    void set_scsi_dir(const std::string &dir, bool remember);
+    std::string scsi_dir() const { return scsi_folder; }
     void power_reset();
 
     // state saved with the host project
     std::string floppy_path() const;
     std::vector<std::string> scsi_paths() const;
-    void restore(const std::string &floppy, const std::vector<std::string> &scsi);
+    void restore(const std::string &floppy, const std::vector<std::string> &scsi, const std::string &scsi_dir);
 
     EngineSnapshot snapshot();
     double emulated_seconds();                     // CPU time of the machine (diagnostics)
@@ -67,6 +72,8 @@ private:
     void run_commands();                           // global lock held, machine active
     void ensure_frames(size_t frames);
     void set_status(const std::string &s);
+    std::string attach_scsi_folder(Asr10 &a);     // (re)attach the folder's drives + the user's images
+    std::string scsi_folder_path() const;          // the folder actually used ("" = none)
 
     std::unique_ptr<Asr10> m;
     std::vector<unsigned char> cpu_ctx;
@@ -80,6 +87,7 @@ private:
     std::string status; uint32_t status_serial = 0;
     std::vector<std::string> scsi_list;            // images attached by the user, by SCSI ID
     std::string floppy;
+    std::string scsi_folder;                       // chosen folder, "" = default
 };
 
 std::string asr10_module_dir();                    // folder of the plug-in binary

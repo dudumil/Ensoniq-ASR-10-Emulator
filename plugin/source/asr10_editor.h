@@ -26,6 +26,7 @@ public:
 private:
     void tick();
     void choose_file(bool scsi);
+    void choose_scsi_dir();
     Plugin *plug;
     RackView *rack = nullptr;
     VSTGUI::CTextLabel *status = nullptr;

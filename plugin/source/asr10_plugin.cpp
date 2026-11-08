@@ -262,13 +262,14 @@ static const int32 kStateMagic = 0x41535231;   // "ASR1"
 tresult PLUGIN_API Plugin::getState(IBStream *state) {
     IBStreamer s(state, kLittleEndian);
     s.writeInt32(kStateMagic);
-    s.writeInt32(1);
+    s.writeInt32(2);
     s.writeDouble(volume);
     s.writeInt32(clock_on ? 1 : 0);
     s.writeStr8(eng.floppy_path().c_str());
     auto sc = eng.scsi_paths();
     s.writeInt32((int32)sc.size());
     for (auto &p : sc) s.writeStr8(p.c_str());
+    s.writeStr8(eng.scsi_dir().c_str());            // version 2: SCSI folder
     return kResultOk;
 }
 
@@ -284,11 +285,13 @@ tresult PLUGIN_API Plugin::setState(IBStream *state) {
     if (s.readInt32(n)) for (int32 i = 0; i < n && i < 8; i++) {
         char8 *p = s.readStr8(); scsi.push_back(p ? std::string(p) : std::string()); delete[] p;
     }
+    std::string sdir;
+    if (ver >= 2) if (char8 *d = s.readStr8()) { sdir = d; delete[] d; }
     volume = vol; clock_on = clk != 0;
     setParamNormalized(kVolume, volume);
     setParamNormalized(kMidiClock, clock_on ? 1 : 0);
     eng.analog(Asr10::AN_VOLUME, (uint16_t)(volume * 1000));
-    eng.restore(floppy, scsi);
+    eng.restore(floppy, scsi, sdir);
     return kResultOk;
 }
 

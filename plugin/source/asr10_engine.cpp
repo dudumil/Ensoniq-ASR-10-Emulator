@@ -1,5 +1,6 @@
 #include "asr10_engine.h"
 #include "efe_disk.h"
+#include "settings.h"
 #include "m68k.h"
 #include <cstring>
 #include <cstdlib>
@@ -83,6 +84,11 @@ bool Asr10Engine::boot(const std::string &resources, const std::string &user) {
     floppy = fs::exists(os_user, ec) ? os_user.u8string() : std::string();
     if (!floppy.empty() && !m->fdc.load(floppy)) floppy.clear();
     m->analog[Asr10::AN_VOLUME] = 980;
+    {   // SCSI folder: the one chosen in the stand-alone program or in a plug-in (asr10.cfg)
+        Settings st; st.load((fs::u8path(user) / "asr10.cfg").u8string());
+        scsi_folder = st.scsi_dir;
+        attach_scsi_folder(*m);
+    }
     m->reset();
     ok = true;
     set_status(floppy.empty() ? "Sem disquete do OS: arrasta uma imagem para o painel" : "A arrancar o OS...");
@@ -227,6 +233,35 @@ void Asr10Engine::attach_scsi(const std::string &path) {
     });
 }
 
+std::string Asr10Engine::scsi_folder_path() const {
+    std::error_code ec;
+    if (!scsi_folder.empty() && fs::is_directory(fs::u8path(scsi_folder), ec)) return scsi_folder;
+    fs::path d = fs::u8path(user_dir) / "scsi";
+    return fs::is_directory(d, ec) ? d.u8string() : std::string();
+}
+
+std::string Asr10Engine::attach_scsi_folder(Asr10 &a) {
+    for (auto &d : a.scsi.dev) d.reset();
+    std::error_code ec;
+    for (size_t i = 0; i < scsi_list.size(); i++)        // images attached one by one stay
+        if (!scsi_list[i].empty() && fs::exists(fs::u8path(scsi_list[i]), ec)) a.scsi.attach((int)i, scsi_list[i], ScsiDevice::HD);
+    std::string d = scsi_folder_path();
+    if (!d.empty()) a.scsi.attach_dir(d);
+    return d;
+}
+
+void Asr10Engine::set_scsi_dir(const std::string &dir, bool remember) {
+    if (remember) {
+        std::string cfg = (fs::u8path(user_dir) / "asr10.cfg").u8string();
+        Settings st; st.load(cfg); st.path = cfg; st.scsi_dir = dir; st.save();
+    }
+    push(cmd_mx, cmds, [this, dir](Asr10 &a) {
+        scsi_folder = dir;
+        std::string d = attach_scsi_folder(a);
+        set_status(d.empty() ? "Sem pasta SCSI" : "Pasta SCSI: " + d + "  (Reset para o ASR ver as drives)");
+    });
+}
+
 void Asr10Engine::detach_scsi() {
     push(cmd_mx, cmds, [this](Asr10 &a) {
         for (int i = 0; i < 8; i++) a.scsi.dev[i].reset();
@@ -244,18 +279,18 @@ void Asr10Engine::power_reset() {
 std::string Asr10Engine::floppy_path() const { return floppy; }
 std::vector<std::string> Asr10Engine::scsi_paths() const { return scsi_list; }
 
-void Asr10Engine::restore(const std::string &fl, const std::vector<std::string> &scsi) {
-    push(cmd_mx, cmds, [this, fl, scsi](Asr10 &a) {
+void Asr10Engine::restore(const std::string &fl, const std::vector<std::string> &scsi, const std::string &sdir) {
+    push(cmd_mx, cmds, [this, fl, scsi, sdir](Asr10 &a) {
         std::error_code ec;
         bool any = false;
         scsi_list.clear();
         for (size_t i = 0; i < scsi.size() && i < 8; i++) {
             if (scsi[i].empty() || i == 3 || !fs::exists(fs::u8path(scsi[i]), ec)) continue;
-            if (a.scsi.attach((int)i, scsi[i], ScsiDevice::HD)) {
-                if (scsi_list.size() <= i) scsi_list.resize(i + 1);
-                scsi_list[i] = scsi[i]; any = true;
-            }
+            if (scsi_list.size() <= i) scsi_list.resize(i + 1);
+            scsi_list[i] = scsi[i]; any = true;
         }
+        if (!sdir.empty()) { any = any || sdir != scsi_folder; scsi_folder = sdir; }
+        attach_scsi_folder(a);
         if (!fl.empty() && fl != floppy && fs::exists(fs::u8path(fl), ec)) {
             if (a.fdc.dirty) a.fdc.save();
             if (a.fdc.load(fl)) floppy = fl;

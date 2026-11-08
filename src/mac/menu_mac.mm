@@ -88,3 +88,17 @@ std::string mac_open_disk_dialog() {
         return u ? std::string([[u path] UTF8String]) : std::string();
     }
 }
+
+std::string mac_choose_folder_dialog(const std::string &title) {
+    @autoreleasepool {
+        NSOpenPanel *p = [NSOpenPanel openPanel];
+        [p setCanChooseFiles:NO];
+        [p setCanChooseDirectories:YES];
+        [p setCanCreateDirectories:YES];
+        [p setAllowsMultipleSelection:NO];
+        [p setTitle:[NSString stringWithUTF8String:title.c_str()]];
+        if ([p runModal] != NSModalResponseOK) return "";
+        NSURL *u = [[p URLs] firstObject];
+        return u ? std::string([[u path] UTF8String]) : std::string();
+    }
+}

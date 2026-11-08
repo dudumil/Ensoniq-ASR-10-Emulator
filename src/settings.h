@@ -17,6 +17,9 @@ struct Settings {
     bool midi_in_set = false;          // false: use the first input port, like earlier versions
     // window
     bool show_keyboard = true;         // strip with the wheels, Patch Select and the keyboard
+    // SCSI drives: folder with ZuluSCSI-style images (HD0.img, CD5.iso ...); "" = the "scsi" folder
+    // next to the program
+    std::string scsi_dir;
 
     std::string path;                  // file the settings were loaded from / are saved to
     bool load(const std::string &file);

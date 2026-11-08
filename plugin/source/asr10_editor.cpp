@@ -58,6 +58,7 @@ public:
         if (!ready()) return;
         bool held[64] = {};
         if (held_button >= 0 && held_button < 64) held[held_button] = true;
+        if (arrows_both) held[10] = held[11] = true;
         if (rec_latched) held[3] = true;
         RackState rs;
         rs.panel = &snap.panel; rs.ticks = now_ms(); rs.held = held;
@@ -77,11 +78,17 @@ public:
     }
 
     void onMouseDownEvent(MouseDownEvent &e) override {
-        if (!e.buttonState.isLeft()) return;
         CPoint p = to_px(e.mousePosition);
         RackUI &ui = off.ui();
         int bi = ui.button_at((int)p.x, (int)p.y);
         Asr10Engine &eng = plug->engine();
+        if (!e.buttonState.isLeft()) {
+            // right click on an arrow = both arrows: the OS jumps to the middle of the range
+            if (e.buttonState.isRight() && (bi == 10 || bi == 11)) {
+                arrows_both = true; eng.button(10, true); eng.button(11, true); e.consumed = true;
+            }
+            return;
+        }
         if (bi == RackUI::AUDIO_A || bi == RackUI::AUDIO_B) { held_button = bi; eng.button(bi, true); }
         else if (bi == 3) { rec_latched = !rec_latched; eng.button(3, rec_latched); }   // RECORD latches
         else if (bi >= 0) { held_button = bi; eng.button(bi, true); }
@@ -104,6 +111,7 @@ public:
             power_held = false;
             if (now_ms() - power_t >= 700) eng.power_reset();
         }
+        if (arrows_both) { eng.button(11, false); eng.button(10, false); arrows_both = false; }
         if (held_button >= 0) { eng.button(held_button, false); held_button = -1; }
         drag = 0;
         e.consumed = true;
@@ -170,13 +178,13 @@ private:
     SharedPointer<CBitmap> bmp;
     SharedPointer<RackDrop> drop;
     int held_button = -1, drag = 0;
-    bool rec_latched = false, power_held = false;
+    bool rec_latched = false, power_held = false, arrows_both = false;
     uint32_t power_t = 0;
     double data = 0.5;
 };
 
 // ------------------------------------------------------------------ editor
-enum { kTagFloppy = 1, kTagEject, kTagScsi, kTagScsiOff, kTagReset, kTagClock };
+enum { kTagFloppy = 1, kTagEject, kTagScsi, kTagScsiOff, kTagScsiDir, kTagReset, kTagClock };
 
 static int rack_height() {
     static int h = 0;
@@ -216,6 +224,7 @@ bool PLUGIN_API Editor::open(void *parent, const PlatformType &type) {
     button("Ejetar", kTagEject, 60);
     button("Disco SCSI...", kTagScsi, 100);
     button("Desligar SCSI", kTagScsiOff, 104);
+    button("Pasta SCSI...", kTagScsiDir, 96);
     button("Reset", kTagReset, 56);
     auto *clk = new CTextButton(CRect(x, y0, x + 150, y0 + h), this, kTagClock, "Relogio MIDI do host", CTextButton::kOnOffStyle);
     clk->setFont(kNormalFontSmall); clk->setRoundRadius(3);
@@ -268,6 +277,21 @@ void Editor::choose_file(bool scsi) {
     sel->forget();
 }
 
+void Editor::choose_scsi_dir() {
+    if (!frame) return;
+    auto *sel = CNewFileSelector::create(frame, CNewFileSelector::kSelectDirectory);
+    if (!sel) return;
+    sel->setTitle("Pasta das drives SCSI (HD0.img, CD5.iso ...)");
+    std::string cur = plug->engine().scsi_dir();
+    sel->setInitialDirectory((cur.empty() ? asr10_user_dir() : cur).c_str());
+    Plugin *p = plug;
+    sel->run([p](CNewFileSelector *s) {
+        if (s->getNumSelectedFiles() == 0) return;
+        p->engine().set_scsi_dir(s->getSelectedFile(0), true);
+    });
+    sel->forget();
+}
+
 void Editor::valueChanged(CControl *c) {
     int tag = c->getTag();
     if (tag == kTagClock) {
@@ -282,6 +306,7 @@ void Editor::valueChanged(CControl *c) {
     case kTagEject: eng.eject_disk(); break;
     case kTagScsi: choose_file(true); break;
     case kTagScsiOff: eng.detach_scsi(); break;
+    case kTagScsiDir: choose_scsi_dir(); break;
     case kTagReset: eng.power_reset(); break;
     }
 }

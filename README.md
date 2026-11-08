@@ -2,7 +2,7 @@
 
 ![The emulator starting up: ENSONIQ ASR-10 on the display](docs/screenshot.png)
 
-A hardware-level emulator of the **Ensoniq ASR-10** sampler. It runs the original ROM and boots the
+A hardware-level emulator of the **Ensoniq ASR-10** (rack) sampler. It runs the original ROM and boots the
 original operating system from a floppy image, on an emulated 68000 CPU, ES5506 (OTTO) sound chip,
 ES5510 (ESP) effects DSP, floppy controller and SCSI. Nothing of the OS is faked, so it behaves like
 the real instrument: sampling, effects, sequencer, Audio Tracks, disks.

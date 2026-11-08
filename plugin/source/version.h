@@ -18,5 +18,5 @@
 #define stringCompanyName     "ASR10emu"
 #define stringCompanyWeb      ""
 #define stringCompanyEmail    ""
-#define stringLegalCopyright  "Emulador ASR-10 (projeto pessoal)"
+#define stringLegalCopyright  "ASR-10 emulator (personal project)"
 #define stringLegalTrademarks "VST is a trademark of Steinberg Media Technologies GmbH"

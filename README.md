@@ -155,9 +155,11 @@ Windows: com o Visual Studio, `cmake -S plugin -B build-vst -A x64` e `cmake --b
 compilação cruzada: o script `tools/patch_vst3sdk_mingw.py` adapta uma cópia do SDK ao MinGW (sem PPL,
 sem a biblioteca standalone do VSTGUI, DirectComposition desligada; o VSTGUI desenha só com Direct2D).
 
-O plug-in procura as ROMs (e o `os353.img`) dentro do bundle (`Contents/Resources/roms`) e depois na
-pasta do utilizador: `%APPDATA%\Ensoniq\ASR10emu\roms` (Windows),
-`~/Library/Application Support/Ensoniq/ASR10emu/roms` (macOS), `~/.local/share/Ensoniq/ASR10emu/roms` (Linux).
+O plug-in usa os mesmos ficheiros que a app: a app grava a sua pasta em `asr10.cfg` (`app_dir=`) cada
+vez que arranca, e o plug-in procura as ROMs e o `os353.img` na pasta `roms` da app, depois na pasta do
+utilizador (`%APPDATA%\Ensoniq\ASR10emu\roms` no Windows, `~/Library/Application Support/Ensoniq/ASR10emu/roms`
+no macOS, `~/.local/share/Ensoniq/ASR10emu/roms` no Linux) e por fim dentro do bundle. A disquete do OS é
+o mesmo ficheiro que a app usa. Basta abrir a app uma vez antes de usar o plug-in.
 
 O plug-in é um instrumento ("Instrument|Sampler"):
 - **MIDI In**: notas, poly pressure, SysEx, e todos os controladores, pitch bend, aftertouch e program
@@ -166,16 +168,16 @@ O plug-in é um instrumento ("Instrument|Sampler"):
 - **saídas**: Main e AUX 1/2/3 (o Output Expander). Uma saída AUX ativada no anfitrião sai da mistura
   principal, como no rack com o OEX-6;
 - **entrada estéreo** (side chain) para samplar e gravar Audio Tracks;
-- **parâmetros**: Volume (o slider do painel) e "Relógio MIDI do host", que envia ao ASR o tempo e o
-  transporte do anfitrião (MIDI clock, start/stop, song position) para o sequenciador seguir o projeto;
-- **editor**: o painel do rack (desenhado com o mesmo código da app, a 2× para ecrãs Retina) e uma
-  barra com Disquete…, Ejetar, Disco SCSI…, Desligar SCSI, Reset. Arrastar uma imagem
-  para o painel insere-a (disquete, ou disco SCSI se tiver mais de 2 MB); clique direito numa seta
-  Up/Down = as duas setas juntas;
+- **parâmetro**: Volume (o slider do painel);
+- **editor**: só o painel do rack (desenhado com o mesmo código da app, a 2× para ecrãs Retina), em
+  inglês, sem botões extra, como no aparelho: arrastar uma imagem `.img` ou instrumentos `.efa`/`.efe`
+  para o painel mete-os no drive (ou no SCSI, se a imagem tiver mais de 2 MB); o botão de ejetar do
+  drive ejeta; o botão Power mantido ~1 s faz reset; clique direito numa seta Up/Down = as duas setas
+  juntas. As mensagens (disco inserido, erros) aparecem uns segundos em baixo do painel;
 - **definições**: o plug-in não tem opções próprias. Usa as da app (`asr10.cfg` na pasta do
   utilizador): para mudar, por exemplo, a pasta das drives SCSI, abre a app, muda nas Options e o
   plug-in segue (lê-as ao abrir e volta a lê-las quando o ficheiro muda, com o editor aberto);
-- **projeto**: guarda o volume, a opção do relógio e os caminhos da disquete e dos discos SCSI. Ao abrir o
+- **projeto**: guarda o volume e os caminhos da disquete e dos discos SCSI. Ao abrir o
   projeto o ASR arranca de novo com esses discos (o conteúdo da RAM não é guardado: carrega-se como
   num ASR real).
 

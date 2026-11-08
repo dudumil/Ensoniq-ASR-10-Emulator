@@ -7,7 +7,7 @@ original operating system from a floppy image, on an emulated 68000 CPU, ES5506 
 ES5510 (ESP) effects DSP, floppy controller and SCSI. Nothing of the OS is faked, so it behaves like
 the real instrument: sampling, effects, sequencer, Audio Tracks, disks.
 
-Available as a **Windows app**, a **macOS app** (built from source) and a **VST3 instrument plug-in**.
+Available as a **Windows app** and a **VST3 instrument plug-in**.
 
 ## What works
 

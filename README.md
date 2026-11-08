@@ -30,8 +30,6 @@ Get the latest **ASR10-Windows.zip** from the [Releases](../../releases) page. I
 | `asr10-cli.exe` | command-line version (tests, rendering to WAV) |
 | `VST3/ASR10.vst3` | the VST3 instrument plug-in |
 
-macOS: build it with `./build-mac.sh` (see [Building](#building)).
-
 ## You need your own ROM and OS disk
 
 The ROM and the operating system belong to Ensoniq/E-mu and are **not included**. Put them in the

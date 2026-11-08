@@ -84,11 +84,7 @@ bool Asr10Engine::boot(const std::string &resources, const std::string &user) {
     floppy = fs::exists(os_user, ec) ? os_user.u8string() : std::string();
     if (!floppy.empty() && !m->fdc.load(floppy)) floppy.clear();
     m->analog[Asr10::AN_VOLUME] = 980;
-    {   // SCSI folder: the one chosen in the stand-alone program or in a plug-in (asr10.cfg)
-        Settings st; st.load((fs::u8path(user) / "asr10.cfg").u8string());
-        scsi_folder = st.scsi_dir;
-        attach_scsi_folder(*m);
-    }
+    apply_settings(*m, true);              // the stand-alone program's settings (asr10.cfg)
     m->reset();
     ok = true;
     set_status(floppy.empty() ? "Sem disquete do OS: arrasta uma imagem para o painel" : "A arrancar o OS...");
@@ -250,16 +246,28 @@ std::string Asr10Engine::attach_scsi_folder(Asr10 &a) {
     return d;
 }
 
-void Asr10Engine::set_scsi_dir(const std::string &dir, bool remember) {
-    if (remember) {
-        std::string cfg = (fs::u8path(user_dir) / "asr10.cfg").u8string();
-        Settings st; st.load(cfg); st.path = cfg; st.scsi_dir = dir; st.save();
-    }
-    push(cmd_mx, cmds, [this, dir](Asr10 &a) {
-        scsi_folder = dir;
+// The plug-in has no settings of its own: it follows the stand-alone program's asr10.cfg (the SCSI
+// drive folder), read at start and whenever it changes.
+static fs::file_time_type cfg_time(const std::string &p) {
+    std::error_code ec;
+    auto t = fs::last_write_time(fs::u8path(p), ec);
+    return ec ? fs::file_time_type::min() : t;
+}
+
+void Asr10Engine::apply_settings(Asr10 &a, bool first) {
+    std::string cfg = (fs::u8path(user_dir) / "asr10.cfg").u8string();
+    cfg_stamp = cfg_time(cfg);
+    Settings st; st.load(cfg);
+    if (first || st.scsi_dir != scsi_folder) {
+        scsi_folder = st.scsi_dir;
         std::string d = attach_scsi_folder(a);
-        set_status(d.empty() ? "Sem pasta SCSI" : "Pasta SCSI: " + d + "  (Reset para o ASR ver as drives)");
-    });
+        if (!first) set_status(d.empty() ? "Sem pasta SCSI" : "Pasta SCSI da app: " + d + "  (Reset para o ASR ver as drives)");
+    }
+}
+
+void Asr10Engine::check_settings() {
+    if (!ok || cfg_time((fs::u8path(user_dir) / "asr10.cfg").u8string()) == cfg_stamp) return;
+    push(cmd_mx, cmds, [this](Asr10 &a) { apply_settings(a, false); });
 }
 
 void Asr10Engine::detach_scsi() {
@@ -279,8 +287,8 @@ void Asr10Engine::power_reset() {
 std::string Asr10Engine::floppy_path() const { return floppy; }
 std::vector<std::string> Asr10Engine::scsi_paths() const { return scsi_list; }
 
-void Asr10Engine::restore(const std::string &fl, const std::vector<std::string> &scsi, const std::string &sdir) {
-    push(cmd_mx, cmds, [this, fl, scsi, sdir](Asr10 &a) {
+void Asr10Engine::restore(const std::string &fl, const std::vector<std::string> &scsi) {
+    push(cmd_mx, cmds, [this, fl, scsi](Asr10 &a) {
         std::error_code ec;
         bool any = false;
         scsi_list.clear();
@@ -289,7 +297,6 @@ void Asr10Engine::restore(const std::string &fl, const std::vector<std::string> 
             if (scsi_list.size() <= i) scsi_list.resize(i + 1);
             scsi_list[i] = scsi[i]; any = true;
         }
-        if (!sdir.empty()) { any = any || sdir != scsi_folder; scsi_folder = sdir; }
         attach_scsi_folder(a);
         if (!fl.empty() && fl != floppy && fs::exists(fs::u8path(fl), ec)) {
             if (a.fdc.dirty) a.fdc.save();

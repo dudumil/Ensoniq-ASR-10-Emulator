@@ -184,7 +184,7 @@ private:
 };
 
 // ------------------------------------------------------------------ editor
-enum { kTagFloppy = 1, kTagEject, kTagScsi, kTagScsiOff, kTagScsiDir, kTagReset, kTagClock };
+enum { kTagFloppy = 1, kTagEject, kTagScsi, kTagScsiOff, kTagReset, kTagClock };
 
 static int rack_height() {
     static int h = 0;
@@ -224,7 +224,6 @@ bool PLUGIN_API Editor::open(void *parent, const PlatformType &type) {
     button("Ejetar", kTagEject, 60);
     button("Disco SCSI...", kTagScsi, 100);
     button("Desligar SCSI", kTagScsiOff, 104);
-    button("Pasta SCSI...", kTagScsiDir, 96);
     button("Reset", kTagReset, 56);
     auto *clk = new CTextButton(CRect(x, y0, x + 150, y0 + h), this, kTagClock, "Relogio MIDI do host", CTextButton::kOnOffStyle);
     clk->setFont(kNormalFontSmall); clk->setRoundRadius(3);
@@ -252,6 +251,7 @@ void PLUGIN_API Editor::close() {
 
 void Editor::tick() {
     if (!rack) return;
+    if (++settings_ticks >= 60) { settings_ticks = 0; plug->engine().check_settings(); }   // ~2 s
     EngineSnapshot s = plug->engine().snapshot();
     rack->update(s);
     if (status && s.status_serial != last_status) {
@@ -277,21 +277,6 @@ void Editor::choose_file(bool scsi) {
     sel->forget();
 }
 
-void Editor::choose_scsi_dir() {
-    if (!frame) return;
-    auto *sel = CNewFileSelector::create(frame, CNewFileSelector::kSelectDirectory);
-    if (!sel) return;
-    sel->setTitle("Pasta das drives SCSI (HD0.img, CD5.iso ...)");
-    std::string cur = plug->engine().scsi_dir();
-    sel->setInitialDirectory((cur.empty() ? asr10_user_dir() : cur).c_str());
-    Plugin *p = plug;
-    sel->run([p](CNewFileSelector *s) {
-        if (s->getNumSelectedFiles() == 0) return;
-        p->engine().set_scsi_dir(s->getSelectedFile(0), true);
-    });
-    sel->forget();
-}
-
 void Editor::valueChanged(CControl *c) {
     int tag = c->getTag();
     if (tag == kTagClock) {
@@ -306,7 +291,6 @@ void Editor::valueChanged(CControl *c) {
     case kTagEject: eng.eject_disk(); break;
     case kTagScsi: choose_file(true); break;
     case kTagScsiOff: eng.detach_scsi(); break;
-    case kTagScsiDir: choose_scsi_dir(); break;
     case kTagReset: eng.power_reset(); break;
     }
 }

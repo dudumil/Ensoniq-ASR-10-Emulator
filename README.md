@@ -240,6 +240,12 @@ fica em `asr10.cfg` (`scsi_dir=`) e é partilhada com o plug-in VST3. Se não ho
 emulador usa uma pasta `scsi` na pasta de trabalho, na pasta das definições ou ao lado do executável.
 Mudar de pasta liga logo as drives novas; reinicia o ASR (Power ~1 s) para o OS as procurar.
 
+**Criar um disco novo:** nas mesmas opções, escolhe **New drive size** (de 50 MB a 2 GB) e carrega em
+**New drive → Create HDn.img**. O emulador cria na pasta (ou em `…/ASR10emu/scsi`, se ainda não houver
+nenhuma) uma imagem com o primeiro ID SCSI livre, já formatada como o FORMAT SCSI DRIVE do ASR-10 a
+deixa (bloco de identificação, diretório vazio, FAT), por isso não é preciso formatá-la. O ficheiro é
+criado "esparso": só ocupa espaço no disco à medida que é escrito (em NTFS ocupa o tamanho todo).
+
 | Nome do ficheiro | Dispositivo |
 |---|---|
 | `HD<id>[lun][_<bloco>].<ext>` (p.ex. `HD0.img`, `HD10_512.hda`) | disco rígido, gravável |

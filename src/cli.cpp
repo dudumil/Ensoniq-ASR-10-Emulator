@@ -168,7 +168,7 @@ int main(int argc, char **argv) {
     static uint32_t ring[64]; static int rp = 0;
     if (trap_log || pc_hist || !breaks.empty() || trace_cnt) m.on_instr = [&](uint32_t pc) {
         pc &= 0xffffff;
-        if (pc == trace_pc && m.cycles() / m.cpu_clock >= trace_after) tracing = true;
+        if ((pc == trace_pc || trace_pc == 1) && m.cycles() / m.cpu_clock >= trace_after) tracing = true;
         if (tracing && trace_cnt > 0) {
             char buf[128]; m68k_disassemble(buf, pc, M68K_CPU_TYPE_68000);
             fprintf(stderr, "T %06x: %-40s D0=%08x D1=%08x D2=%08x A0=%08x\n", pc, buf, m68k_get_reg(NULL, M68K_REG_D0), m68k_get_reg(NULL, M68K_REG_D1), m68k_get_reg(NULL, M68K_REG_D2), m68k_get_reg(NULL, M68K_REG_A0));
@@ -180,6 +180,8 @@ int main(int argc, char **argv) {
             for (int r = 0; r < 8; r++) fprintf(stderr, "  D%d=%08x A%d=%08x\n", r, m68k_get_reg(NULL, (m68k_register_t)(M68K_REG_D0 + r)), r, m68k_get_reg(NULL, (m68k_register_t)(M68K_REG_A0 + r)));
             uint32_t sp = m68k_get_reg(NULL, M68K_REG_SP);
             fprintf(stderr, "  stack:"); for (int k = 0; k < 16; k++) fprintf(stderr, " %04x", m.read(sp + k * 2, 2)); fprintf(stderr, "\n");
+            uint32_t usp = m68k_get_reg(NULL, M68K_REG_USP);
+            fprintf(stderr, "  ustack:"); for (int k = 0; k < 24; k++) fprintf(stderr, " %04x", m.read(usp + k * 2, 2)); fprintf(stderr, "\n");
             fprintf(stderr, "  recent pcs:"); for (int k = 0; k < 64; k++) fprintf(stderr, " %06x", ring[(rp + k) & 63]); fprintf(stderr, "\n");
         }
         if (pc_hist && m.cycles() / m.cpu_clock >= trace_after) hist[pc & ~0xf]++;
@@ -272,6 +274,11 @@ int main(int argc, char **argv) {
     }
     if (esp_list) m.esp.list_program(stderr);
     if (otto_dump) m.otto.dump(stderr);
+    if (const char *f = getenv("ASR_DUMP_HI")) {   // the 512 KB at $F80000 (OS code), through the CPU map
+        FILE *o = fopen(f, "wb");
+        for (uint32_t a = 0xf80000; a < 0x1000000; a++) { uint8_t b = (uint8_t)m.read(a, 1); fwrite(&b, 1, 1, o); }
+        fclose(o);
+    }
     if (!dump_ram.empty()) { FILE *f = fopen(dump_ram.c_str(), "wb"); fwrite(m.ram.data(), 1, m.ram.size(), f); fclose(f); }
     if (write_back && m.fdc.dirty) { if (m.fdc.save()) fprintf(stderr, "disk image written back\n"); }
     if (!wav.empty()) write_wav(wav.c_str(), m.audio, (int)m.out_rate);

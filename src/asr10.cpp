@@ -205,7 +205,9 @@ void Asr10::cs3_write8(uint32_t a, uint8_t v) {
     uint32_t off = a & 0x1fff;
     switch (off >> 11) {
     case 0: fdc.write((off >> 1) & 1, v); break;
-    case 1: duart.write((off >> 1) & 15, v); break;
+    case 1:
+        if (trace_io && ((off >> 1) & 15) == 11) fprintf(stderr, "PANELTX %02x pc=%06x t=%.4f\n", v, last_pc(), cycles() / cpu_clock);
+        duart.write((off >> 1) & 15, v); break;
     case 2:
         if (off & 0x400) { scsi_latch = v; break; }
         if (trace_io) fprintf(stderr, "SCSI W %d = %02x pc=%06x\n", (off >> 1) & 1, v, last_pc());
@@ -298,7 +300,18 @@ uint32_t Asr10::read(uint32_t a, int sz) {
     if (t == P_ROM) {
         uint32_t m = (uint32_t)rom.size() - 1, o = a & m;
         if (sz == 1) return rom[o];
-        if (sz == 2) return (rom[o] << 8) | rom[(o + 1) & m];
+        if (sz == 2) {
+            uint16_t w = (rom[o] << 8) | rom[(o + 1) & m];
+            // The Load page lights an indicator for the type of the file shown, from a table in the
+            // ROM ($F82546, one word per file type). It ends at type $21, so for an ASR-10 macro
+            // file (type $22) the OS reads past it and lights nothing, while EPS macros (type 9)
+            // light MACRO. Give type $22 the macro entry, so that ASR macros light MACRO too.
+            if (a == 0xf8258a && w == 0x0004 && read(0xf82558, 2) == 0x258d) {
+                uint32_t pc = last_pc() & 0xffffff;
+                if (read(pc, 2) == 0x3474 && read(pc + 2, 2) == 0x2000) w = 0x258d;   // movea.w (A4,D2.w),A2
+            }
+            return w;
+        }
         return ((uint32_t)rom[o] << 24) | (rom[(o + 1) & m] << 16) | (rom[(o + 2) & m] << 8) | rom[(o + 3) & m];
     }
     return io_read(t, a, sz);

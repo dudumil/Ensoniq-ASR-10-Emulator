@@ -2,6 +2,7 @@
 #include "lcd.h"
 #include "panel.h"
 #include "vfd_art.h"
+#include "lcd_font.h"
 #include <algorithm>
 #include <cmath>
 #include <cstring>
@@ -47,8 +48,8 @@ void colour(SDL_Renderer *R, uint32_t c, uint8_t a = 255) { SDL_SetRenderDrawCol
 
 const uint8_t *glyph(unsigned char ch) { return (ch >= 0x20 && ch < 0x60) ? FONT5X7[ch - 0x20] : FONT5X7[0]; }
 bool dot5x7(const uint8_t *g, int c, int r) { return c >= 0 && c < 5 && r >= 0 && r < 7 && (g[c] >> r & 1); }
-// the text line's pixels: 6 x 14, each dot of the 5x7 glyph is 2 pixels wide and 2 tall
-bool px_big(const uint8_t *g, int c, int r) { return dot5x7(g, c, r / 2) || dot5x7(g, c - 1, r / 2); }
+// the text line's pixels: 7 x 14, copied from the module (lcd_font.h; most glyphs are 6 wide)
+bool px_big(int ch, int c, int r) { return c >= 0 && c < 7 && r >= 0 && r < 14 && (LCD_BIG[ch][r] >> c & 1); }
 
 // a w x h dot matrix as a white alpha texture, DU x DU texels per dot. grid = false: solid
 // pixels; grid = true: only the thin gaps between the pixels (the dot grid you see on the module,
@@ -90,9 +91,9 @@ bool LcdRenderer::init(SDL_Renderer *r) {
     SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "1");
     for (int ch = 0; ch < 64; ch++) {
         const uint8_t *g = FONT5X7[ch];
-        auto fb = [&](int c, int rr) { return px_big(g, c, rr); };
+        auto fb = [&](int c, int rr) { return px_big(ch, c, rr); };
         auto fs = [&](int c, int rr) { return dot5x7(g, c, rr); };
-        big[ch] = dots_texture(R, 6, 14, fb); big_g[ch] = dots_texture(R, 6, 14, fb, true);
+        big[ch] = dots_texture(R, 7, 14, fb); big_g[ch] = dots_texture(R, 7, 14, fb, true);
         small_[ch] = dots_texture(R, 5, 7, fs); small_g[ch] = dots_texture(R, 5, 7, fs, true);
         if (!big[ch] || !small_[ch] || !big_g[ch] || !small_g[ch]) return false;
     }
@@ -195,7 +196,7 @@ void LcdRenderer::draw(const Panel &p, float x, float y, uint32_t ticks, float s
         SDL_Texture *tx = nullptr, *tg = nullptr;
         if (ch == ' ' && i < p.meter) { tx = meter; tg = meter_g; }          // level meter: a lit bar
         else if (ch > ' ' && ch < 0x60) { tx = big[ch - 0x20]; tg = big_g[ch - 0x20]; }
-        if (tx) blit(tx, tg, SDL_FRect{ cx, cy, 6 * u, 14 * u });
+        if (tx) blit(tx, tg, SDL_FRect{ cx, cy, (tx == meter ? 6 : 7) * u, 14 * u });
         if (p.attr[i] & 3) blit(underline, underline_g, SDL_FRect{ cx, cy + 16 * u, 6 * u, 2 * u });   // underline / edit cursor
     }
     SDL_SetRenderDrawBlendMode(R, old);

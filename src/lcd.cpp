@@ -3,6 +3,7 @@
 #include "panel.h"
 #include "vfd_art.h"
 #include <algorithm>
+#include <cmath>
 #include <cstring>
 #include <functional>
 #include <string>
@@ -28,32 +29,39 @@ static const uint8_t FONT5X7[64][5] = {   // codes $20-$5F, one byte per column 
     {0x02,0x04,0x08,0x10,0x20}, {0x00,0x41,0x41,0x7F,0x00}, {0x04,0x02,0x01,0x02,0x04}, {0x40,0x40,0x40,0x40,0x40}
 };
 
-constexpr uint32_t TEXT = 0xeceab8;                 // lit dots (pale yellow-green)
+constexpr uint32_t TEXT = 0xeceab8;                 // lit pixels (pale yellow-green)
 constexpr uint32_t BACK_TL = 0x8d66ee, BACK_TR = 0xab6cf3, BACK_BL = 0x6e6ae7, BACK_BR = 0x9b66ee;
 
-// the big text line: 22 cells of 5x7 dots, drawn bold (6x8 dots), slightly taller than wide
-constexpr float PITCH = 26.0f, LEFT = 13.0f, TOP = 80.0f, DW = 3.5f, DH = 3.9f;
-// legends: small dots (5x7 letters, 7 dots per letter cell)
-constexpr float LU = 2.5f;
-constexpr float ROW0 = 8.0f, ROW_STEP = 27.0f;
-constexpr int DU = 8;                               // texels per dot in the textures
+// The module is a 240 x 58 pixel graphic LCD with square pixels (measured on photos of it).
+// The text line is 22 cells of 8 x 14 pixels: the 5x7 character set drawn two pixels thick
+// (every dot is two pixels wide and two tall), 6 x 14 pixels of glyph and a 2 pixel gap.
+// The legends use the same character set at 1 pixel thickness, 8 pixels per letter.
+constexpr int PX_W = 240, PX_H = 58;
+constexpr float CELL = LcdRenderer::WIDTH / PX_W;       // logical px per LCD pixel
+constexpr int TEXT_X = 32, TEXT_Y = 34;                 // first text cell
+constexpr int LEG_LEFT = 5, LEG_MID = 64, LEG_RIGHT = 227, LEG_COL = 56;   // legend columns
+constexpr int LEG_ROW0 = 3, LEG_STEP = 11;              // legend rows
+constexpr int DU = 4;                                   // texels per LCD pixel in the textures
 
 void colour(SDL_Renderer *R, uint32_t c, uint8_t a = 255) { SDL_SetRenderDrawColor(R, c >> 16, (c >> 8) & 255, c & 255, a); }
 
 const uint8_t *glyph(unsigned char ch) { return (ch >= 0x20 && ch < 0x60) ? FONT5X7[ch - 0x20] : FONT5X7[0]; }
 bool dot5x7(const uint8_t *g, int c, int r) { return c >= 0 && c < 5 && r >= 0 && r < 7 && (g[c] >> r & 1); }
-// bold: every dot also lights its right and lower neighbours (6x8 dots, strokes two dots thick)
-bool dot_bold(const uint8_t *g, int c, int r) {
-    return dot5x7(g, c, r) || dot5x7(g, c - 1, r) || dot5x7(g, c, r - 1) || dot5x7(g, c - 1, r - 1);
-}
+// the text line's pixels: 6 x 14, each dot of the 5x7 glyph is 2 pixels wide and 2 tall
+bool px_big(const uint8_t *g, int c, int r) { return dot5x7(g, c, r / 2) || dot5x7(g, c - 1, r / 2); }
 
-// a w x h dot matrix as a white alpha texture, DU x DU texels per dot with a thin gap
-SDL_Texture *dots_texture(SDL_Renderer *R, int w, int h, const std::function<bool(int, int)> &on) {
+// a w x h dot matrix as a white alpha texture, DU x DU texels per dot. grid = false: solid
+// pixels; grid = true: only the thin gaps between the pixels (the dot grid you see on the module,
+// drawn on top when the pixels are large enough on screen)
+SDL_Texture *dots_texture(SDL_Renderer *R, int w, int h, const std::function<bool(int, int)> &on, bool grid = false) {
     const int tw = w * DU, th = h * DU;
     std::vector<uint32_t> px((size_t)tw * th, 0x00ffffff);
     for (int c = 0; c < w; c++) for (int r = 0; r < h; r++) {
         if (!on(c, r)) continue;
-        for (int y = 0; y < DU - 1; y++) for (int x = 0; x < DU - 1; x++) px[(size_t)(r * DU + y) * tw + c * DU + x] = 0xffffffff;
+        for (int y = 0; y < DU; y++) for (int x = 0; x < DU; x++) {
+            bool gap = x == DU - 1 || y == DU - 1;
+            if (!grid || gap) px[(size_t)(r * DU + y) * tw + c * DU + x] = 0xffffffff;
+        }
     }
     SDL_Texture *t = SDL_CreateTexture(R, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STATIC, tw, th);
     if (!t) return nullptr;
@@ -71,8 +79,10 @@ LcdRenderer::~LcdRenderer() {
     for (auto *t : big) if (t) SDL_DestroyTexture(t);
     for (auto *t : small_) if (t) SDL_DestroyTexture(t);
     for (auto *t : inv) if (t) SDL_DestroyTexture(t);
-    if (meter) SDL_DestroyTexture(meter);
-    if (underline) SDL_DestroyTexture(underline);
+    for (auto *t : big_g) if (t) SDL_DestroyTexture(t);
+    for (auto *t : small_g) if (t) SDL_DestroyTexture(t);
+    for (auto *t : inv_g) if (t) SDL_DestroyTexture(t);
+    for (SDL_Texture *t : { meter, underline, meter_g, underline_g }) if (t) SDL_DestroyTexture(t);
 }
 
 bool LcdRenderer::init(SDL_Renderer *r) {
@@ -80,20 +90,26 @@ bool LcdRenderer::init(SDL_Renderer *r) {
     SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "1");
     for (int ch = 0; ch < 64; ch++) {
         const uint8_t *g = FONT5X7[ch];
-        big[ch] = dots_texture(R, 6, 8, [&](int c, int rr) { return dot_bold(g, c, rr); });
-        small_[ch] = dots_texture(R, 5, 7, [&](int c, int rr) { return dot5x7(g, c, rr); });
-        if (!big[ch] || !small_[ch]) return false;
+        auto fb = [&](int c, int rr) { return px_big(g, c, rr); };
+        auto fs = [&](int c, int rr) { return dot5x7(g, c, rr); };
+        big[ch] = dots_texture(R, 6, 14, fb); big_g[ch] = dots_texture(R, 6, 14, fb, true);
+        small_[ch] = dots_texture(R, 5, 7, fs); small_g[ch] = dots_texture(R, 5, 7, fs, true);
+        if (!big[ch] || !small_[ch] || !big_g[ch] || !small_g[ch]) return false;
     }
-    meter = dots_texture(R, 6, 8, [](int c, int) { return c >= 1 && c <= 4; });
-    underline = dots_texture(R, 6, 1, [](int, int) { return true; });
+    auto fm = [](int c, int) { return c >= 1 && c <= 4; };
+    auto fu = [](int, int) { return true; };
+    meter = dots_texture(R, 6, 14, fm); meter_g = dots_texture(R, 6, 14, fm, true);
+    underline = dots_texture(R, 6, 2, fu); underline_g = dots_texture(R, 6, 2, fu, true);
     const int n = (int)(sizeof(VFD_LEGENDS) / sizeof(VFD_LEGENDS[0]));
     for (int i = 0; i < n && i < 32; i++) {            // the inverted legends: a lit box, the letters cut out
         const char *t = VFD_LEGENDS[i].text; const int len = (int)strlen(t);
-        inv[i] = dots_texture(R, len * 7, 9, [&](int c, int rr) {
-            int ch = c / 7, gx = c % 7 - 1, gy = rr - 1;
+        auto fi = [&](int c, int rr) {
+            int ch = (c - 1) / 8, gx = (c - 1) % 8, gy = rr - 1;
+            if (c == 0) return true;
             return !(gx >= 0 && gx < 5 && gy >= 0 && gy < 7 && dot5x7(glyph((unsigned char)t[ch]), gx, gy));
-        });
-        if (!inv[i]) return false;
+        };
+        inv[i] = dots_texture(R, len * 8 + 1, 9, fi); inv_g[i] = dots_texture(R, len * 8 + 1, 9, fi, true);
+        if (!inv[i] || !inv_g[i]) return false;
     }
     return true;
 }
@@ -122,7 +138,7 @@ void LcdRenderer::draw(const Panel &p, float x, float y, uint32_t ticks, float s
 
     // ---- annunciators: which legends are lit, and where they go
     // The mode legend of the first column (LOAD / CMD / EDIT) is inverted at the top left. The
-    // other lit legends of the left group are stacked in two rows from x = 150; those of the
+    // other lit legends of the left group are stacked in two rows from pixel 64; those of the
     // right group (ENV ... STOP, AMP ... CLOCK) likewise from the right edge.
     std::vector<Leg> left, right;
     int mode = -1; bool mode_on = false;
@@ -136,49 +152,51 @@ void LcdRenderer::draw(const Panel &p, float x, float y, uint32_t ticks, float s
         if (first_col) { mode = i; mode_on = on; }
         else (l.group == 0 ? left : right).push_back({ i, on });
     }
-    const float u = LU * s;
-    auto legend_w = [&](const char *t) { return (float)strlen(t) * 7 * u; };
-    auto draw_legend = [&](int idx, float lx, float ly, bool inverted) {
+    const float u = CELL * s;                               // one LCD pixel on screen
+    // the pixel grid (gaps between the lit pixels) only shows when the pixels are big on the real screen
+    float sx = 1, sy = 1; SDL_RenderGetScale(R, &sx, &sy);
+    const float gridA = std::min(0.8f, std::max(0.0f, (u * sx - 2.2f) / 3.5f));
+    auto blit = [&](SDL_Texture *solid, SDL_Texture *grid, const SDL_FRect &d) {
+        tint(solid, TEXT); SDL_RenderCopyF(R, solid, nullptr, &d);
+        if (gridA > 0.02f) {
+            SDL_SetTextureColorMod(grid, 0x7a, 0x63, 0xe0); SDL_SetTextureAlphaMod(grid, (Uint8)(gridA * 255));
+            SDL_RenderCopyF(R, grid, nullptr, &d);
+        }
+    };
+    auto legend_w = [&](const char *t) { return (float)(strlen(t) * 8 + 1) * u; };
+    auto draw_legend = [&](int idx, float px, int row, bool inverted) {   // px = left edge in LCD pixels
         const char *t = VFD_LEGENDS[idx].text;
+        const float lx = x + px * u, ly = y + (float)(LEG_ROW0 + LEG_STEP * row) * u;
         if (inverted) {
             SDL_FRect d{ lx, ly, legend_w(t), 9 * u };
-            tint(inv[idx], TEXT); SDL_RenderCopyF(R, inv[idx], nullptr, &d);
+            blit(inv[idx], inv_g[idx], d);
         } else {
             for (size_t i = 0; t[i]; i++) {
                 unsigned char ch = (unsigned char)t[i];
-                SDL_Texture *tx = small_[(ch >= 0x20 && ch < 0x60) ? ch - 0x20 : 0];
-                SDL_FRect d{ lx + ((float)i * 7 + 1) * u, ly + u, 5 * u, 7 * u };
-                tint(tx, TEXT); SDL_RenderCopyF(R, tx, nullptr, &d);
+                int gi = (ch >= 0x20 && ch < 0x60) ? ch - 0x20 : 0;
+                SDL_FRect d{ lx + (float)(1 + i * 8) * u, ly + u, 5 * u, 7 * u };
+                blit(small_[gi], small_g[gi], d);
             }
         }
     };
-    if (mode >= 0 && mode_on) draw_legend(mode, x + 10 * s, y + ROW0 * s, true);
-    const float colw = 118 * s;
-    for (size_t k = 0; k < left.size(); k++) {
-        if (!left[k].on) continue;
-        draw_legend(left[k].idx, x + 150 * s + (float)(k / 2) * colw, y + (ROW0 + ROW_STEP * (float)(k % 2)) * s, false);
-    }
-    for (size_t k = 0; k < right.size(); k++) {
-        if (!right[k].on) continue;
-        float lx = x + (WIDTH - 10) * s - (float)(k / 2) * colw - legend_w(VFD_LEGENDS[right[k].idx].text);
-        draw_legend(right[k].idx, lx, y + (ROW0 + ROW_STEP * (float)(k % 2)) * s, false);
-    }
+    if (mode >= 0 && mode_on) draw_legend(mode, (float)LEG_LEFT, 0, true);
+    for (size_t k = 0; k < left.size(); k++)
+        if (left[k].on) draw_legend(left[k].idx, (float)(LEG_MID + LEG_COL * (int)(k / 2)), (int)(k % 2), false);
+    for (size_t k = 0; k < right.size(); k++)
+        if (right[k].on) {
+            float w = legend_w(VFD_LEGENDS[right[k].idx].text) / u;
+            draw_legend(right[k].idx, (float)(LEG_RIGHT - LEG_COL * (int)(k / 2)) - w, (int)(k % 2), false);
+        }
 
     // ---- the text line
     for (int i = 0; i < Panel::COLS; i++) {
-        const float cx = x + (LEFT + PITCH * i) * s, cy = y + TOP * s;
+        const float cx = x + (float)(TEXT_X + 8 * i) * u, cy = y + (float)TEXT_Y * u;
         unsigned char ch = (unsigned char)p.disp[i];
-        SDL_Texture *tx = nullptr;
-        if (ch == ' ' && i < p.meter) tx = meter;           // level meter: a lit bar
-        else if (ch > ' ' && ch < 0x60) tx = big[ch - 0x20];
-        if (tx) {
-            SDL_FRect d{ cx, cy, 6 * DW * s, 8 * DH * s };
-            tint(tx, TEXT); SDL_RenderCopyF(R, tx, nullptr, &d);
-        }
-        if (p.attr[i] & 3) {                                // underline / edit cursor
-            SDL_FRect d{ cx, cy + (8 * DH + 1.0f) * s, 6 * DW * s, DH * 0.8f * s };
-            tint(underline, TEXT); SDL_RenderCopyF(R, underline, nullptr, &d);
-        }
+        SDL_Texture *tx = nullptr, *tg = nullptr;
+        if (ch == ' ' && i < p.meter) { tx = meter; tg = meter_g; }          // level meter: a lit bar
+        else if (ch > ' ' && ch < 0x60) { tx = big[ch - 0x20]; tg = big_g[ch - 0x20]; }
+        if (tx) blit(tx, tg, SDL_FRect{ cx, cy, 6 * u, 14 * u });
+        if (p.attr[i] & 3) blit(underline, underline_g, SDL_FRect{ cx, cy + 16 * u, 6 * u, 2 * u });   // underline / edit cursor
     }
     SDL_SetRenderDrawBlendMode(R, old);
 }

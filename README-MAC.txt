@@ -28,6 +28,7 @@ This package contains the source code; build it once on your Mac.
    - Floppy disks and SCSI disks are dragged onto the window; single instruments (.efa/.efe)
      too (they go on a temporary floppy). The OS disk is copied to
      ~/Library/Application Support/Ensoniq/ASR10emu and that copy is the one used/saved.
+   - Display: View > Options > Display > Screen type chooses the original VFD or a purple graphic LCD.
    - SCSI disks: by default the "scsi" folder inside that same folder (names HD0.img,
      CD5.iso, ...), or any image larger than 2 MB dragged onto the window. Another folder and
      new formatted disks (50 MB to 2 GB): View > Options > SCSI drives.

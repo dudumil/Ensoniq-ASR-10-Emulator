@@ -17,6 +17,8 @@ struct Settings {
     bool midi_in_set = false;          // false: use the first input port, like earlier versions
     // window
     bool show_keyboard = true;         // strip with the wheels, Patch Select and the keyboard
+    // display: false = the original VFD, true = the purple graphic LCD
+    bool lcd = false;
     // SCSI drives: folder with ZuluSCSI-style images (HD0.img, CD5.iso ...); "" = the "scsi" folder
     // next to the program
     std::string scsi_dir;

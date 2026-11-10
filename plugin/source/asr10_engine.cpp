@@ -271,6 +271,7 @@ void Asr10Engine::apply_settings(Asr10 &a, bool first) {
     std::string cfg = (fs::u8path(user_dir) / "asr10.cfg").u8string();
     cfg_stamp = cfg_time(cfg);
     Settings st; st.load(cfg);
+    lcd_ = st.lcd;
     if (first || st.scsi_dir != scsi_folder) {
         scsi_folder = st.scsi_dir;
         std::string d = attach_scsi_folder(a);

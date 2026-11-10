@@ -58,7 +58,7 @@ if(ASR10_GUI)
   else()
     find_package(SDL2 REQUIRED)
   endif()
-  add_executable(asr10 src/sdl_main.cpp src/vfd.cpp src/rack_ui.cpp src/ui_text.cpp src/native_menu.cpp src/audio_io.cpp src/settings.cpp third_party/rtaudio/RtAudio.cpp)
+  add_executable(asr10 src/sdl_main.cpp src/vfd.cpp src/lcd.cpp src/rack_ui.cpp src/ui_text.cpp src/native_menu.cpp src/audio_io.cpp src/settings.cpp third_party/rtaudio/RtAudio.cpp)
   if(APPLE)
     # ASR-10.app: ROMs and the OS disk in Contents/Resources/roms, icon, microphone permission
     set_target_properties(asr10 PROPERTIES

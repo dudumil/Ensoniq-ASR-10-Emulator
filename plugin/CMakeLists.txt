@@ -88,7 +88,7 @@ set(sources
   ${vst3sdk_SOURCE_DIR}/public.sdk/source/vst/vstsinglecomponenteffect.cpp)
 if(ASR10_VST_GUI)
   list(APPEND sources source/asr10_editor.cpp source/asr10_editor.h
-       ${EMU}/src/rack_offscreen.cpp ${EMU}/src/rack_ui.cpp ${EMU}/src/vfd.cpp)
+       ${EMU}/src/rack_offscreen.cpp ${EMU}/src/rack_ui.cpp ${EMU}/src/vfd.cpp ${EMU}/src/lcd.cpp)
 endif()
 
 smtg_add_vst3plugin(${target} ${sources})

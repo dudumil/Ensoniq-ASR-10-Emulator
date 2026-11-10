@@ -22,6 +22,7 @@ public:
     const uint32_t *pixels() const;
     int pitch() const;                      // bytes per row
     RackUI &ui() { return *rack; }
+    void set_lcd(bool on) { if (vfd) vfd->set_lcd(on); }   // purple LCD instead of the VFD
 
 private:
     int w = 0, h = 0;

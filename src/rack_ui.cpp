@@ -273,8 +273,8 @@ void RackUI::draw(const RackState &s, VfdRenderer &vfd) {
         SDL_FRect w = rect(668, 228, 619, 149);
         fill({ w.x - K * 2, w.y - K * 2, w.w + K * 4, w.h + K * 4 }, 0x2b2c2f);
         fill(w, 0x030405);
-        float vs = (619 - 34) * K / VfdRenderer::WIDTH;
-        float vh = VfdRenderer::HEIGHT * vs;
+        float vs = (619 - 34) * K / vfd.screen_width();
+        float vh = vfd.screen_height() * vs;
         vfd.draw(p, w.x + 17 * K, w.y + (w.h - vh) / 2, s.ticks, vs, false);
         // reflection on the glass
         SDL_SetRenderDrawBlendMode(R, SDL_BLENDMODE_BLEND);

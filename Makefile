@@ -85,6 +85,8 @@ build/sdl_main.o: src/sdl_main.cpp src/*.h | build
 	$(CXX) $(CXXFLAGS) $(INC) $(SDL_CFLAGS) -DASR_WITH_RTMIDI -c $< -o $@
 build/vfd.o: src/vfd.cpp src/*.h | build
 	$(CXX) $(CXXFLAGS) $(INC) $(SDL_CFLAGS) -c $< -o $@
+build/lcd.o: src/lcd.cpp src/*.h | build
+	$(CXX) $(CXXFLAGS) $(INC) $(SDL_CFLAGS) -c $< -o $@
 build/native_menu.o: src/native_menu.cpp src/*.h | build
 	$(CXX) $(CXXFLAGS) $(INC) $(SDL_CFLAGS) -c $< -o $@
 build/ui_text.o: src/ui_text.cpp src/*.h | build
@@ -97,5 +99,5 @@ build/settings.o: src/settings.cpp src/*.h | build
 	$(CXX) $(CXXFLAGS) $(INC) -c $< -o $@
 build/rtaudio.o: third_party/rtaudio/RtAudio.cpp | build
 	$(CXX) $(CXXFLAGS) $(AUDIO_DEF) -Ithird_party/rtaudio/include -c $< -o $@
-asr10: $(MUSASHI_OBJ) $(CORE_OBJ) build/sdl_main.o build/vfd.o build/rack_ui.o build/ui_text.o build/native_menu.o build/audio_io.o build/settings.o build/rtmidi.o build/rtaudio.o
+asr10: $(MUSASHI_OBJ) $(CORE_OBJ) build/sdl_main.o build/vfd.o build/lcd.o build/rack_ui.o build/ui_text.o build/native_menu.o build/audio_io.o build/settings.o build/rtmidi.o build/rtaudio.o
 	$(CXX) -o $@ $^ $(SDL_LIBS) $(MIDI_LIBS) $(AUDIO_LIBS) -lpthread

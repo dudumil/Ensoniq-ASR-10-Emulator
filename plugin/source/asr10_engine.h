@@ -9,6 +9,7 @@
 #include <string>
 #include <vector>
 #include <memory>
+#include <atomic>
 #include <mutex>
 #include <functional>
 #include "asr10.h"
@@ -56,6 +57,7 @@ public:
     // settings come from the stand-alone program (asr10.cfg); call now and then (editor timer)
     // to pick up changes made there
     void check_settings();
+    bool lcd() const { return lcd_.load(); }       // display chosen in the app: purple LCD instead of the VFD
     void power_reset();
 
     // state saved with the host project
@@ -88,6 +90,7 @@ private:
     std::string status; uint32_t status_serial = 0;
     std::vector<std::string> scsi_list;            // images attached by the user, by SCSI ID
     std::string floppy;
+    std::atomic<bool> lcd_{false};
     std::string scsi_folder;                       // chosen folder, "" = default
     std::string app_dir;                           // the stand-alone program's folder (from the .cfg)
     std::filesystem::file_time_type cfg_stamp{};

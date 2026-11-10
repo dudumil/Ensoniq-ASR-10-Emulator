@@ -2,6 +2,10 @@
 
 ![The emulator starting up: ENSONIQ ASR-10 on the display](docs/screenshot.png)
 
+*Choose between the original VFD (above) and a purple graphic LCD, like the LCD replacement modules (below), in Options.*
+
+![The same start-up screen with the purple LCD](docs/screenshot-lcd.png)
+
 A hardware-level emulator of the **Ensoniq ASR-10** (rack) sampler. It runs the original ROM and boots the
 original operating system from a floppy image, on an emulated 68000 CPU, ES5506 (OTTO) sound chip,
 ES5510 (ESP) effects DSP, floppy controller and SCSI. Nothing of the OS is faked, so it behaves like
@@ -19,6 +23,7 @@ Available as a **Windows app** and a **VST3 instrument plug-in**.
 - SCSI drives (ZuluSCSI-style images): hard disks and CD-ROMs, booting the OS from SCSI.
 - Output Expander outputs (AUX 1-3) on separate outputs of your audio interface.
 - The full rack front panel, with an on-screen keyboard, pitch and mod wheels.
+- Two display types: the original **VFD**, or a **purple graphic LCD** (View > Options > Display > Screen type). The VST3 plug-in follows the choice made in the app.
 
 ## Download
 

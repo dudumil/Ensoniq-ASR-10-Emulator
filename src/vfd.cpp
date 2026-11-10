@@ -107,6 +107,7 @@ VfdRenderer::~VfdRenderer() {
 
 bool VfdRenderer::init(SDL_Renderer *r) {
     R = r;
+    if (!lcd_r.init(r)) return false;
     SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "1");
     const int w = (int)(CW * SS), h = (int)(CH * SS);
     for (int n = 0; n < NSEG; n++) {
@@ -158,6 +159,7 @@ void VfdRenderer::cell(const Panel &p, int i, float x, float y, float s) {
 }
 
 void VfdRenderer::draw(const Panel &p, float x, float y, uint32_t ticks, float s, bool glass) {
+    if (lcd_on) { lcd_r.draw(p, x, y, ticks, s); return; }
     const bool blink = (ticks / 250) & 1;
     if (glass) {
         SDL_FRect g{x, y, WIDTH * s, HEIGHT * s};

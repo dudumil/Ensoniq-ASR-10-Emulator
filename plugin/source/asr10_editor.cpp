@@ -67,6 +67,7 @@ public:
         rs.in_left = snap.in_left; rs.in_right = snap.in_right;
         rs.power_held = power_held;
         for (int l = 0; l < 4; l++) rs.audio_led[l] = snap.audio_led[l];
+        off.set_lcd(plug->engine().lcd());
         off.render(rs);
         copy_pixels();
         invalid();

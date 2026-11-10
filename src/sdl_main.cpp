@@ -296,6 +296,7 @@ int main(int argc, char **argv) {
     double scale = 1.0;
     bool audio_in = false, list_audio = false; std::string audio_driver;
     std::string input_wav_path; double input_wav_at = -1;
+    std::string force_display;
     double shot_at = -1, quit_at = -1; std::string shot_path;   // testing aids
     bool open_opts_at_start = false;
     std::vector<std::pair<double,int>> auto_buttons;
@@ -312,6 +313,7 @@ int main(int argc, char **argv) {
         else if (a == "--list-midi") list_midi = true;
         else if (a == "--readonly") readonly = true;
         else if (a == "--scsi-dir") scsi_dirs.push_back(next());
+        else if (a == "--display") force_display = next();   // vfd | lcd (this run only)
         else if (a == "--scsi") scsi_specs.push_back(next());
         else if (a == "--no-scsi") no_scsi = true;
         else if (a == "--no-fx") nofx = true;
@@ -513,6 +515,7 @@ int main(int argc, char **argv) {
     SDL_RenderSetLogicalSize(R, W, H);
     VfdRenderer vfd;
     if (!vfd.init(R)) { fprintf(stderr, "VFD textures: %s\n", SDL_GetError()); return 1; }
+    vfd.set_lcd(force_display.empty() ? cfg.lcd : force_display == "lcd");
     RackUI rack((float)W);
     if (!rack.init(R)) { fprintf(stderr, "panel textures: %s\n", SDL_GetError()); return 1; }
     UiText ui;
@@ -693,7 +696,7 @@ int main(int argc, char **argv) {
     std::vector<std::string> midi_ins, midi_outs;
     NativeMenu nmenu;
     std::string opt_msg, scsi_note;
-    enum { O_API, O_OUT, O_RATE, O_BUF, O_MAIN, O_AUX1, O_AUX2, O_AUX3, O_IN, O_INL, O_INR, O_MIDIIN, O_MIDIOUT, O_SCSI, O_NEWSIZE, O_NEWMAKE, O_N };
+    enum { O_API, O_OUT, O_RATE, O_BUF, O_MAIN, O_AUX1, O_AUX2, O_AUX3, O_IN, O_INL, O_INR, O_MIDIIN, O_MIDIOUT, O_SCSI, O_NEWSIZE, O_NEWMAKE, O_DISPLAY, O_N };
     static const unsigned BUFS[] = { 32, 64, 128, 256, 512, 1024, 2048 };
     auto out_dev_info = [&](const Settings &st) -> AudioDevice {
         for (auto &d : devices_of(st.audio_api)) if (d.outputs > 0 && (d.name == st.audio_out || (st.audio_out.empty() && d.default_out))) return d;
@@ -814,6 +817,9 @@ int main(int argc, char **argv) {
             r[O_NEWSIZE].items.push_back(mb % 1024 == 0 ? std::to_string(mb / 1024) + " GB" : std::to_string(mb) + " MB");
             if (mb == new_mb) r[O_NEWSIZE].sel = (int)r[O_NEWSIZE].items.size() - 1;
         }
+        r[O_DISPLAY].label = "Screen type";
+        r[O_DISPLAY].items = { "VFD (original, cyan)", "LCD (purple backlight)" };
+        r[O_DISPLAY].sel = edit.lcd ? 1 : 0;
         r[O_NEWMAKE].label = "New drive";
         int id = new_drive_id();
         r[O_NEWMAKE].items.push_back(id < 0 ? "No free SCSI ID in the folder" : "Create HD" + std::to_string(id) + ".img (formatted)");
@@ -835,6 +841,7 @@ int main(int argc, char **argv) {
         case O_INR: edit.in_right = x.sel; break;
         case O_MIDIIN: edit.midi_in = x.sel == 0 ? "" : v; edit.midi_in_set = true; break;
         case O_MIDIOUT: edit.midi_out = x.sel == 0 ? "" : v; break;
+        case O_DISPLAY: edit.lcd = x.sel == 1; break;
         case O_NEWSIZE: new_mb = NEW_SIZES[std::clamp(x.sel, 0, (int)NEW_SIZES.size() - 1)]; break;
         case O_SCSI:
             if (x.sel == 0) edit.scsi_dir.clear();
@@ -864,6 +871,7 @@ int main(int argc, char **argv) {
         bool scsi_changed = edit.scsi_dir != cfg.scsi_dir;
         cfg = edit;
         cfg.midi_in_set = true;
+        vfd.set_lcd(cfg.lcd);
         {
             std::lock_guard<std::mutex> g(mmx);
             apply_audio();
@@ -884,11 +892,12 @@ int main(int argc, char **argv) {
     const SDL_Rect btn_apply{OX + OW - 214, OY + OH - 46, 70, 26}, btn_close{OX + OW - 112, OY + OH - 46, 70, 26};
     struct Sect { const char *title; int col, y, first, last; };
     // sections: title, column, top, first and last row
-    const Sect sects[4] = {
+    const Sect sects[5] = {
         { "Audio outputs", 0, Y0, O_API, O_AUX3 },
         { "Input (sampler and Audio Tracks)", 1, Y0, O_IN, O_INR },
         { "MIDI", 1, Y0 + ROW_H * 4 + 18, O_MIDIIN, O_MIDIOUT },
-        { "SCSI drives (ZuluSCSI-style: HD0.img, CD5.iso ...)", 1, Y0 + ROW_H * 7 + 30, O_SCSI, O_NEWMAKE } };
+        { "SCSI drives (ZuluSCSI-style: HD0.img, CD5.iso ...)", 1, Y0 + ROW_H * 7 + 30, O_SCSI, O_NEWMAKE },
+        { "Display", 0, Y0 + ROW_H * 9 + 18, O_DISPLAY, O_DISPLAY } };
     auto field_rect = [&](int row) -> SDL_Rect {
         for (const Sect &sc : sects)
             if (row >= sc.first && row <= sc.last)
@@ -918,7 +927,7 @@ int main(int argc, char **argv) {
         drop_top = std::clamp(drop_top, 0, std::max(0, n - DROP_MAX));
     };
     // keyboard order of the fields
-    const int ORDER[O_N] = { O_API, O_OUT, O_RATE, O_BUF, O_MAIN, O_AUX1, O_AUX2, O_AUX3, O_IN, O_INL, O_INR, O_MIDIIN, O_MIDIOUT, O_SCSI, O_NEWSIZE, O_NEWMAKE };
+    const int ORDER[O_N] = { O_API, O_OUT, O_RATE, O_BUF, O_MAIN, O_AUX1, O_AUX2, O_AUX3, O_IN, O_INL, O_INR, O_MIDIIN, O_MIDIOUT, O_SCSI, O_NEWSIZE, O_NEWMAKE, O_DISPLAY };
     auto order_pos = [&](int row) { for (int i = 0; i < O_N; i++) if (ORDER[i] == row) return i; return 0; };
     bool show_kb = cfg.show_keyboard;
     // window layout: keyboard strip shown or hidden (it is always there while the options are
@@ -1389,8 +1398,8 @@ int main(int argc, char **argv) {
             }
             fill(OX, OY, OW, 1, 0x4a4c51); fill(OX, OY + OH - 1, OW, 1, 0x0b0b0c);
             // title, letter-spaced like "DIGITAL SAMPLING WORKSTATION", with purple rules
-            float tw = ui.width(UiText::TITLE, "Options  ·  Audio, MIDI and SCSI", 1);
-            ui.draw(UiText::TITLE, "Options  ·  Audio, MIDI and SCSI", OX + OW / 2.0f, OY + 18, PURPLE, 1, 1);
+            float tw = ui.width(UiText::TITLE, "Options  ·  Audio, MIDI, SCSI and display", 1);
+            ui.draw(UiText::TITLE, "Options  ·  Audio, MIDI, SCSI and display", OX + OW / 2.0f, OY + 18, PURPLE, 1, 1);
             fill(OX + 36, OY + 30, (int)(OW / 2.0f - tw / 2 - 56), 2, PURPLE);
             fill((int)(OX + OW / 2.0f + tw / 2 + 20), OY + 30, (int)(OW / 2.0f - tw / 2 - 56), 2, PURPLE);
             // sections and rows

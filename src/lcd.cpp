@@ -40,7 +40,7 @@ constexpr uint32_t BACK_TL = 0x8d66ee, BACK_TR = 0xab6cf3, BACK_BL = 0x6e6ae7, B
 constexpr int PX_W = 240, PX_H = 58;
 constexpr float CELL = LcdRenderer::WIDTH / PX_W;       // logical px per LCD pixel
 constexpr int TEXT_X = 32, TEXT_Y = 34;                 // first text cell
-constexpr int LEG_LEFT = 5, LEG_MID = 64, LEG_RIGHT = 227, LEG_COL = 56;   // legend columns
+constexpr int LEG_LEFT = 5, LEG_RIGHT = 236;           // the mode box's left edge; right edge of the right-hand legends
 constexpr int LEG_ROW0 = 3, LEG_STEP = 11;              // legend rows
 constexpr int DU = 4;                                   // texels per LCD pixel in the textures
 
@@ -49,6 +49,14 @@ void colour(SDL_Renderer *R, uint32_t c, uint8_t a = 255) { SDL_SetRenderDrawCol
 const uint8_t *glyph(unsigned char ch) { return (ch >= 0x20 && ch < 0x60) ? FONT5X7[ch - 0x20] : FONT5X7[0]; }
 bool dot5x7(const uint8_t *g, int c, int r) { return c >= 0 && c < 5 && r >= 0 && r < 7 && (g[c] >> r & 1); }
 // the text line's pixels: 7 x 14, copied from the module (lcd_font.h; most glyphs are 6 wide)
+// the ASR sends 0.-9. (a digit with its decimal point) as ! # % ( ) : ; [ \ ]
+int dotted_digit(int code) {
+    switch (code) {
+    case '!': return 0; case '#': return 1; case '%': return 2; case '(': return 3; case ')': return 4;
+    case ':': return 5; case ';': return 6; case '[': return 7; case '\\': return 8; case ']': return 9;
+    }
+    return -1;
+}
 bool px_big(int ch, int c, int r) { return c >= 0 && c < 7 && r >= 0 && r < 14 && (LCD_BIG[ch][r] >> c & 1); }
 
 // a w x h dot matrix as a white alpha texture, DU x DU texels per dot. grid = false: solid
@@ -91,9 +99,15 @@ bool LcdRenderer::init(SDL_Renderer *r) {
     SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "1");
     for (int ch = 0; ch < 64; ch++) {
         const uint8_t *g = FONT5X7[ch];
-        auto fb = [&](int c, int rr) { return px_big(ch, c, rr); };
+        std::function<bool(int, int)> fb = [&](int c, int rr) { return px_big(ch, c, rr); };
+        const int dd = dotted_digit(ch + 0x20);              // codes that are a digit with a decimal point
+        if (dd >= 0) fb = [dd](int c, int rr) {
+            if (px_big(dd + 0x10, c, rr)) return true;
+            const bool wide = dd == 4;                       // the 4 is 7 wide: its dot is one pixel narrower
+            return rr >= 12 && c >= (wide ? 7 : 6) && c < 8;
+        };
         auto fs = [&](int c, int rr) { return dot5x7(g, c, rr); };
-        big[ch] = dots_texture(R, 7, 14, fb); big_g[ch] = dots_texture(R, 7, 14, fb, true);
+        big[ch] = dots_texture(R, 8, 14, fb); big_g[ch] = dots_texture(R, 8, 14, fb, true);
         small_[ch] = dots_texture(R, 5, 7, fs); small_g[ch] = dots_texture(R, 5, 7, fs, true);
         if (!big[ch] || !small_[ch] || !big_g[ch] || !small_g[ch]) return false;
     }
@@ -116,7 +130,20 @@ bool LcdRenderer::init(SDL_Renderer *r) {
 }
 
 namespace {
-struct Leg { int idx; bool on; };
+// Every legend has one fixed place on the screen (the module never moves them). Legends that
+// share a place are never lit together, so the first one that is lit is drawn.
+struct Slot { int col, row; bool right; };
+Slot slot_of(const char *t) {
+    auto is = [&](std::initializer_list<const char *> l) { for (const char *n : l) if (!strcmp(t, n)) return true; return false; };
+    if (is({ "INST", "MIDI", "SYSTEM", "LAYER", "SEQ" })) return { 64, 0, false };
+    if (is({ "SONG" })) return { 64, 1, false };
+    if (is({ "PITCH", "FILTER", "AMP", "ENV", "LFO", "WAVE" })) return { 120, 0, false };
+    if (is({ "MACRO", "BANK" })) return { 120, 1, false };
+    if (is({ "ODUB", "REC", "PLAY", "STOP" })) return { LEG_RIGHT, 0, true };
+    if (is({ "TRACK", "BAR", "BEAT", "CLOCK" })) return { LEG_RIGHT, 1, true };
+    if (is({ "STEP" })) return { LEG_RIGHT - 56, 0, true };
+    return { LEG_RIGHT - 56, 1, true };                       // REP
+}
 }
 
 void LcdRenderer::draw(const Panel &p, float x, float y, uint32_t ticks, float s) {
@@ -141,17 +168,20 @@ void LcdRenderer::draw(const Panel &p, float x, float y, uint32_t ticks, float s
     // The mode legend of the first column (LOAD / CMD / EDIT) is inverted at the top left. The
     // other lit legends of the left group are stacked in two rows from pixel 64; those of the
     // right group (ENV ... STOP, AMP ... CLOCK) likewise from the right edge.
-    std::vector<Leg> left, right;
-    int mode = -1; bool mode_on = false;
+    int mode = -1, mode_st = 0;
     const int n = (int)(sizeof(VFD_LEGENDS) / sizeof(VFD_LEGENDS[0]));
+    struct Placed { int idx; Slot sl; int st; };
+    std::vector<Placed> placed;
     for (int i = 0; i < n; i++) {
         const VfdLegend &l = VFD_LEGENDS[i];
         int st = (l.group == 0 ? p.ind2 : p.ind3)[l.index & 15] % 3;
         if (!st) continue;
-        bool on = st == 1 || blink;
         bool first_col = l.group == 0 && (i % 5) == 0;      // LOAD, CMD, EDIT
-        if (first_col) { mode = i; mode_on = on; }
-        else (l.group == 0 ? left : right).push_back({ i, on });
+        if (first_col) { mode = i; mode_st = st; continue; }
+        Slot sl = slot_of(l.text);
+        bool taken = false;
+        for (const Placed &q : placed) if (q.sl.col == sl.col && q.sl.row == sl.row && q.sl.right == sl.right) taken = true;
+        if (!taken) placed.push_back({ i, sl, st });
     }
     const float u = CELL * s;                               // one LCD pixel on screen
     // the pixel grid (gaps between the lit pixels) only shows when the pixels are big on the real screen
@@ -165,13 +195,14 @@ void LcdRenderer::draw(const Panel &p, float x, float y, uint32_t ticks, float s
         }
     };
     auto legend_w = [&](const char *t) { return (float)(strlen(t) * 8 + 1) * u; };
-    auto draw_legend = [&](int idx, float px, int row, bool inverted) {   // px = left edge in LCD pixels
+    auto draw_legend = [&](int idx, float px, int row, bool inverted, bool letters) {   // px = left edge in LCD pixels
         const char *t = VFD_LEGENDS[idx].text;
         const float lx = x + px * u, ly = y + (float)(LEG_ROW0 + LEG_STEP * row) * u;
         if (inverted) {
             SDL_FRect d{ lx, ly, legend_w(t), 9 * u };
             blit(inv[idx], inv_g[idx], d);
-        } else {
+        }
+        if (!inverted || !letters) {
             for (size_t i = 0; t[i]; i++) {
                 unsigned char ch = (unsigned char)t[i];
                 int gi = (ch >= 0x20 && ch < 0x60) ? ch - 0x20 : 0;
@@ -180,14 +211,14 @@ void LcdRenderer::draw(const Panel &p, float x, float y, uint32_t ticks, float s
             }
         }
     };
-    if (mode >= 0 && mode_on) draw_legend(mode, (float)LEG_LEFT, 0, true);
-    for (size_t k = 0; k < left.size(); k++)
-        if (left[k].on) draw_legend(left[k].idx, (float)(LEG_MID + LEG_COL * (int)(k / 2)), (int)(k % 2), false);
-    for (size_t k = 0; k < right.size(); k++)
-        if (right[k].on) {
-            float w = legend_w(VFD_LEGENDS[right[k].idx].text) / u;
-            draw_legend(right[k].idx, (float)(LEG_RIGHT - LEG_COL * (int)(k / 2)) - w, (int)(k % 2), false);
-        }
+    // the mode box never moves or goes out; only its letters blink (cut out when on, filled in when off)
+    if (mode >= 0) draw_legend(mode, (float)LEG_LEFT, 0, true, mode_st == 1 || blink);
+    for (const Placed &q : placed) {
+        if (!(q.st == 1 || blink)) continue;
+        float px = (float)q.sl.col;
+        if (q.sl.right) px -= legend_w(VFD_LEGENDS[q.idx].text) / u;
+        draw_legend(q.idx, px, q.sl.row, false, true);
+    }
 
     // ---- the text line
     for (int i = 0; i < Panel::COLS; i++) {
@@ -196,7 +227,7 @@ void LcdRenderer::draw(const Panel &p, float x, float y, uint32_t ticks, float s
         SDL_Texture *tx = nullptr, *tg = nullptr;
         if (ch == ' ' && i < p.meter) { tx = meter; tg = meter_g; }          // level meter: a lit bar
         else if (ch > ' ' && ch < 0x60) { tx = big[ch - 0x20]; tg = big_g[ch - 0x20]; }
-        if (tx) blit(tx, tg, SDL_FRect{ cx, cy, (tx == meter ? 6 : 7) * u, 14 * u });
+        if (tx) blit(tx, tg, SDL_FRect{ cx, cy, (tx == meter ? 6 : 8) * u, 14 * u });
         if (p.attr[i] & 3) blit(underline, underline_g, SDL_FRect{ cx, cy + 16 * u, 6 * u, 2 * u });   // underline / edit cursor
     }
     SDL_SetRenderDrawBlendMode(R, old);

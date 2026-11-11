@@ -123,9 +123,12 @@ Slot slot_of(const char *t) {
     if (is({ "PITCH", "FILTER", "AMP", "ENV" })) return { 120, 0, false };
     if (is({ "LFO", "WAVE" })) return { 120, 1, false };
     if (is({ "ODUB", "REC", "PLAY", "STOP" })) return { LEG_RIGHT, 0, true };
-    if (is({ "TRACK", "BAR", "BEAT", "CLOCK" })) return { LEG_RIGHT, 1, true };
-    if (is({ "STEP" })) return { 147, 0, false };
-    return { 147, 1, false };                                 // REP, under STEP
+    if (is({ "TRACK", "BEAT", "CLOCK" })) return { LEG_RIGHT, 1, true };
+    // the song position "003. 07.01" sits in the last 8 text cells: STEP over the 003, BAR over the 07, REP over the 01
+    auto cell = [](int c) { return TEXT_X + 8 * c - 1; };
+    if (is({ "STEP" })) return { cell(14), 1, false };
+    if (is({ "BAR" })) return { cell(18), 0, false };
+    return { cell(20), 1, false };                           // REP
 }
 }
 

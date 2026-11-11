@@ -172,7 +172,7 @@ SHEET = [   # the module's character cells: 16 rows of 8 columns (cell column 0 
 # ASCII code -> cell of SHEET (what the ASR sends; ! # % ( ) : ; [ \\ ] are the digits with a dot)
 CELL = {}
 for i, ch in enumerate("ABCDEFGHIJKLMNOPQRSTUVWXYZ"): CELL[ch] = i
-CELL.update({"-": 26, "+": 27, "=": 28, "/": 29, "*": 31, "?": 42, ".": 47})   # cells 45 ( and 46 ) are not used: the ASR sends ( ) as the digits 3. and 4.
+CELL.update({"-": 26, "+": 27, "=": 28, "/": 29, "*": 31, "?": 42, ".": 47, "<": 45, ">": 46})   # the ASR sends < > for the module's ( ) sprites; its ( ) codes are the digits 3. and 4.
 for i, ch in enumerate("0123456789"): CELL[ch] = 32 + i
 for i, ch in enumerate("!#%():;[\\]"): CELL[ch] = 48 + i
 

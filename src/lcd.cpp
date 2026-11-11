@@ -23,7 +23,7 @@ constexpr int PX_W = 240, PX_H = 58;
 constexpr float CELL = LcdRenderer::WIDTH / PX_W;       // logical px per LCD pixel
 constexpr int TEXT_X = 31, TEXT_Y = 34;                 // first text cell
 constexpr int LEG_LEFT = 5, LEG_RIGHT = 235;           // the mode box's left edge; right edge of the right-hand legends
-constexpr int LEG_ROW0 = 3, LEG_STEP = 11;              // legend rows
+constexpr int LEG_ROW0 = 3, LEG_STEP = 14;              // legend rows
 constexpr int DU = 4;                                   // texels per LCD pixel in the textures
 
 void colour(SDL_Renderer *R, uint32_t c, uint8_t a = 255) { SDL_SetRenderDrawColor(R, c >> 16, (c >> 8) & 255, c & 255, a); }
@@ -73,9 +73,9 @@ std::vector<Ptr> make_pointers() {
     v[0].name = "BAR";                                                   // under BAR, then down to the right, bar over cell 1 of the field
     line(v[0], 0, 24, 8); for (int k = 0; k < 5; k++) v[0].px.push_back({ 25 + k, 9 + k }); line(v[0], 24, 31, 14);
     v[1].name = "STEP";                                                  // short line under "ST", down to the right, bar over cells 3-4
-    line(v[1], 0, 9, 8); for (int k = 0; k < 5; k++) v[1].px.push_back({ 10 + k, 9 + k }); line(v[1], 8, 23, 14);
+    line(v[1], 0, 9, 8); for (int k = 0; k < 5; k++) v[1].px.push_back({ 10 + k, 9 + k }); line(v[1], 8, 22, 14);
     v[2].name = "REP";                                                   // under REP, down to the left, bar over cells 5-6
-    line(v[2], -2, 23, 8); for (int k = 0; k < 5; k++) v[2].px.push_back({ -3 - k, 9 + k }); line(v[2], -16, -1, 14);
+    line(v[2], -2, 23, 8); for (int k = 0; k < 5; k++) v[2].px.push_back({ -3 - k, 9 + k }); line(v[2], -15, -1, 14);
     return v;
 }
 const std::vector<Ptr> &pointers() { static const std::vector<Ptr> p = make_pointers(); return p; }
@@ -147,19 +147,18 @@ namespace {
 struct Slot { int col, row; bool right; int y = -1; };      // y: pixel row of the legend's top, -1 = by row
 Slot slot_of(const char *t) {
     auto is = [&](std::initializer_list<const char *> l) { for (const char *n : l) if (!strcmp(t, n)) return true; return false; };
-    // left: INST / BANK, SYSTEM / MACRO, SEQ / SONG ... share one column, the second row directly under the first
-    if (is({ "INST", "MIDI", "SYSTEM", "LAYER", "SEQ" })) return { 64, 0, false };
-    if (is({ "SONG", "MACRO", "BANK" })) return { 64, 1, false };
-    if (is({ "PITCH", "FILTER", "AMP", "ENV" })) return { 120, 0, false };
-    if (is({ "LFO", "WAVE" })) return { 120, 1, false };
+    // left: one column; the first line (INST, SEQ, SYSTEM, ENV ...) with the second line directly under it
+    // (BANK, SONG, MACRO; AMP / FILTER / PITCH under ENV for the envelope pages 3 / 2 / 1)
+    if (is({ "INST", "MIDI", "SYSTEM", "LAYER", "SEQ", "ENV" })) return { 64, 0, false };
+    if (is({ "SONG", "MACRO", "BANK", "AMP", "FILTER", "PITCH", "LFO", "WAVE" })) return { 64, 1, false };
     if (is({ "ODUB", "REC", "PLAY", "STOP" })) return { LEG_RIGHT, 0, true };
     if (is({ "TRACK", "BEAT", "CLOCK" })) return { LEG_RIGHT, 1, true };
     // the song position "003. 07.01" fills the last 8 text cells (14-21), as in "002. 02.01.": BAR sits two cells
     // before it, STEP over its 3rd cell, REP after it; each has a line under it that points at its digits
     auto cell = [](int c) { return TEXT_X + 8 * c - 1; };
-    if (is({ "BAR" })) return { cell(12), 2, false, 11 };
-    if (is({ "STEP" })) return { cell(16), 2, false, 11 };
-    return { cell(21), 2, false, 11 };                       // REP
+    if (is({ "BAR" })) return { cell(12), 2, false, 14 };
+    if (is({ "STEP" })) return { cell(16), 2, false, 14 };
+    return { cell(21), 2, false, 14 };                       // REP
 }
 }
 

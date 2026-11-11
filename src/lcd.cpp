@@ -68,18 +68,25 @@ namespace {
 // mean (as on the module). Pixels relative to the legend's first letter cell (x) and its top row (y).
 struct Ptr { const char *name; std::vector<std::pair<int, int>> px; };
 std::vector<Ptr> make_pointers() {
-    std::vector<Ptr> v(3);
+    std::vector<Ptr> v(5);
     auto line = [](Ptr &p, int x0, int x1, int y) { for (int x = x0; x <= x1; x++) p.px.push_back({ x, y }); };
-    v[0].name = "BAR";                                                   // under BAR, then down to the right, bar over cell 1 of the field
+    // BAR: under BAR, then down to the right, bar over cell 1 of the field
+    v[0].name = "BAR";
     line(v[0], 0, 24, 8); for (int k = 0; k < 5; k++) v[0].px.push_back({ 25 + k, 9 + k }); line(v[0], 24, 31, 14);
-    v[1].name = "STEP";                                                  // short line under "ST", down to the right, bar over cells 3-4
-    line(v[1], 0, 9, 8); for (int k = 0; k < 5; k++) v[1].px.push_back({ 10 + k, 9 + k }); line(v[1], 8, 22, 14);
-    v[2].name = "REP";                                                   // under REP, down to the left, bar over cells 5-6
-    line(v[2], -2, 23, 8); for (int k = 0; k < 5; k++) v[2].px.push_back({ -3 - k, 9 + k }); line(v[2], -15, -1, 14);
+    // STEP / BEAT: short line under the first letters, down to the right, bar right over the two characters of the 2nd group
+    for (int n : { 1, 3 }) {
+        v[n].name = n == 1 ? "STEP" : "BEAT";
+        line(v[n], 0, 18, 8); for (int k = 0; k < 5; k++) v[n].px.push_back({ 19 + k, 9 + k }); line(v[n], 17, 31, 14);
+    }
+    // REP / CLOCK: line under the word, down to the left, bar right over the two characters of the 3rd group
+    for (int n : { 2, 4 }) {
+        v[n].name = n == 2 ? "REP" : "CLOCK";
+        line(v[n], 6, n == 2 ? 23 : 39, 8); for (int k = 0; k < 5; k++) v[n].px.push_back({ 5 - k, 9 + k }); line(v[n], -6, 7, 14);
+    }
     return v;
 }
 const std::vector<Ptr> &pointers() { static const std::vector<Ptr> p = make_pointers(); return p; }
-const int PTR_X0 = -16, PTR_W = 48, PTR_Y0 = 8, PTR_H = 7;             // common texture box
+const int PTR_X0 = -8, PTR_W = 48, PTR_Y0 = 8, PTR_H = 7;             // common texture box
 }
 
 LcdRenderer::~LcdRenderer() {
@@ -116,7 +123,7 @@ bool LcdRenderer::init(SDL_Renderer *r) {
         legs[k] = dots_texture(R, 8, 6, fsm); legs_g[k] = dots_texture(R, 8, 6, fsm, true);
         if (!legc[k] || !legs[k] || !legc_g[k] || !legs_g[k]) return false;
     }
-    for (size_t k = 0; k < 3; k++) {                    // the lines under BAR / STEP / REP
+    for (size_t k = 0; k < 5; k++) {                    // the lines under BAR / STEP / REP (and BEAT / CLOCK)
         const auto &px = pointers()[k].px;
         auto fp = [&px](int c, int rr) {
             for (const auto &q : px) if (q.first - PTR_X0 == c && q.second - PTR_Y0 == rr) return true;
@@ -149,19 +156,18 @@ Slot slot_of(const char *t) {
     auto is = [&](std::initializer_list<const char *> l) { for (const char *n : l) if (!strcmp(t, n)) return true; return false; };
     // (the left column is assigned dynamically: see left_rank)
     if (is({ "ODUB", "REC", "PLAY", "STOP" })) return { LEG_RIGHT, 0, true };
-    if (is({ "TRACK", "BEAT", "CLOCK" })) return { LEG_RIGHT, 1, true };
     // the song position "003. 07.01" fills the last 8 text cells (14-21), as in "002. 02.01.": BAR sits two cells
     // before it, STEP over its 3rd cell, REP after it; each has a line under it that points at its digits
     auto cell = [](int c) { return TEXT_X + 8 * c - 1; };
     if (is({ "BAR" })) return { cell(12), 2, false, 14 };
-    if (is({ "STEP" })) return { cell(16), 2, false, 14 };
-    return { cell(21), 2, false, 14 };                       // REP
+    if (is({ "STEP", "BEAT" })) return { cell(16), 2, false, 14 };      // (BEAT / CLOCK: the same places on the event-edit page "002.04.65")
+    return { cell(21), 2, false, 14 };                       // REP, CLOCK
 }
 
 // The left column has two lines. The legends of the first line (INST, SEQ, SYSTEM, MIDI, LAYER, LFO, WAVE, PITCH ...) sit
 // on top; if two of them are lit at once (ENV with PITCH / FILTER / AMP for the envelope pages 1 / 2 / 3) the first in this
 // order stays on top and the other goes directly under it. SONG, MACRO and BANK are always on the second line.
-const char *const LEFT_TOP[] = { "ENV", "INST", "SEQ", "SYSTEM", "MIDI", "LAYER", "LFO", "WAVE", "PITCH", "FILTER", "AMP" };
+const char *const LEFT_TOP[] = { "ENV", "INST", "SEQ", "SYSTEM", "MIDI", "LAYER", "LFO", "WAVE", "PITCH", "FILTER", "AMP", "TRACK" };
 const char *const LEFT_BOTTOM[] = { "SONG", "MACRO", "BANK" };
 int left_rank(const char *t, bool &bottom_only) {
     for (int i = 0; i < (int)(sizeof(LEFT_TOP) / sizeof(*LEFT_TOP)); i++) if (!strcmp(t, LEFT_TOP[i])) { bottom_only = false; return i; }
@@ -271,7 +277,7 @@ void LcdRenderer::draw(const Panel &p, float x, float y, uint32_t ticks, float s
         float px = (float)q.sl.col;
         if (q.sl.right) px -= legend_w(VFD_LEGENDS[q.idx].text) / u;
         draw_legend(q.idx, px, q.sl.row, false, true, q.sl.y);
-        for (size_t k = 0; k < 3; k++) if (!strcmp(pointers()[k].name, VFD_LEGENDS[q.idx].text))
+        for (size_t k = 0; k < 5; k++) if (!strcmp(pointers()[k].name, VFD_LEGENDS[q.idx].text))
             blit(ptr[k], ptr_g[k], SDL_FRect{ x + (px + 1 + PTR_X0) * u, y + (float)(q.sl.y + 1 + PTR_Y0) * u, PTR_W * u, PTR_H * u });
     }
 

@@ -319,6 +319,12 @@ void RackUI::draw(const RackState &s, VfdRenderer &vfd) {
         led(1773, 520, 6, 20, 0xff3a1a, s.drive_busy);
     }
 
+    // ---- SCSI activity LED over the floppy drive: lit for a moment after each bus activity
+    if (!scsi_seen_init) { scsi_seen = s.scsi_activity; scsi_seen_init = true; }
+    if (s.scsi_activity != scsi_seen) { scsi_seen = s.scsi_activity; scsi_seen_t = s.ticks; scsi_hit = true; }
+    const bool scsi_lit = scsi_hit && (uint32_t)(s.ticks - scsi_seen_t) < 70;
+    led(1746.5f, 184, 14, 8, 0xff2a1a, scsi_lit);
+
     // ---- legends
     int i = 0;
     for (const PanelLegend &l : PANEL_LEGENDS) {

@@ -86,19 +86,26 @@ bool Asr10Engine::boot(const std::string &resources, const std::string &user) {
         std::sort(imgs.begin(), imgs.end());
         return imgs.empty() ? fs::path() : imgs[0];
     };
+    // The OS disk is looked for where the program is (its "roms" folder) and in the bundle, never in the per-user
+    // folder: an image left there is not used once it has been removed from the program's folder. (An image that
+    // is only in the bundle is copied to the user folder, as the bundle may not be writable; the copy is used
+    // only while the bundle image exists.)
     fs::path os;
-    for (auto &d : dirs) if (d != resources) { os = find_disk(d); if (!os.empty()) break; }
-    if (os.empty() && !resources.empty()) {          // only in the bundle: work on a copy in the user folder
+    if (!st.app_dir.empty())
+        for (auto &d : { (fs::u8path(st.app_dir) / "roms").u8string(), st.app_dir }) { os = find_disk(d); if (!os.empty()) break; }
+    if (os.empty() && !resources.empty()) {
         fs::path b = find_disk(resources);
         if (!b.empty() && copy_if_missing(b, fs::u8path(user) / b.filename())) os = fs::u8path(user) / b.filename();
     }
-    floppy = os.empty() ? std::string() : os.u8string();
+    os_disk = os.empty() ? std::string() : os.u8string();
+    boot_scsi_ = st.boot_scsi;
+    floppy = (os.empty() || st.boot_scsi) ? std::string() : os.u8string();   // boot = scsi: no floppy at start
     if (!floppy.empty() && !m->fdc.load(floppy)) floppy.clear();
     m->analog[Asr10::AN_VOLUME] = 980;
     apply_settings(*m, true);              // the stand-alone program's settings (asr10.cfg)
     m->reset();
     ok = true;
-    set_status(floppy.empty() ? "No OS disk: drop a disk image on the panel" : "");
+    set_status(floppy.empty() ? (st.boot_scsi ? "Booting from SCSI: no floppy in the drive" : "No OS disk: drop a disk image on the panel") : "");
     return true;
 }
 
@@ -312,7 +319,12 @@ void Asr10Engine::restore(const std::string &fl, const std::vector<std::string> 
             scsi_list[i] = scsi[i]; any = true;
         }
         attach_scsi_folder(a);
-        if (!fl.empty() && fl != floppy && fs::exists(fs::u8path(fl), ec)) {
+        // (a saved project's floppy is not restored when it is a copy of the OS disk in the per-user folder, or the
+        // OS disk while booting from SCSI)
+        fs::path flp = fs::u8path(fl), ud = fs::u8path(user_dir);
+        bool auto_os = !fl.empty() && (flp.parent_path() == ud || flp.parent_path() == ud / "roms" ||
+                                       (boot_scsi_ && !os_disk.empty() && flp.filename() == fs::u8path(os_disk).filename()));
+        if (!fl.empty() && !auto_os && fl != floppy && fs::exists(flp, ec)) {
             if (a.fdc.dirty) a.fdc.save();
             if (a.fdc.load(fl)) floppy = fl;
         }
@@ -328,7 +340,7 @@ EngineSnapshot Asr10Engine::snapshot() {
     s.booted = ok;
     s.panel = m->panel;
     for (int l = 0; l < 4; l++) s.audio_led[l] = m->audio_led(l);
-    s.disk = m->fdc.has_disk(); s.drive_busy = m->fdc.motor != 0;
+    s.disk = m->fdc.has_disk(); s.drive_busy = m->fdc.motor != 0; s.scsi_activity = m->scsi.activity.load(std::memory_order_relaxed);
     s.in_left = m->in_peak_ch[0]; s.in_right = m->in_peak_ch[1];
     m->in_peak_ch[0] = m->in_peak_ch[1] = 0;
     s.floppy = s.disk ? m->fdc.path : std::string();

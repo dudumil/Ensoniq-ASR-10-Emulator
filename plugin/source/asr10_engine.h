@@ -21,6 +21,7 @@ struct EngineSnapshot {
     Panel panel;
     bool audio_led[4] = {};
     bool disk = false, drive_busy = false;
+    uint32_t scsi_activity = 0;
     float in_left = 0, in_right = 0;
     std::string floppy, scsi;            // floppy image path, SCSI summary
     std::string status;                  // last message for the status line
@@ -90,6 +91,8 @@ private:
     std::string status; uint32_t status_serial = 0;
     std::vector<std::string> scsi_list;            // images attached by the user, by SCSI ID
     std::string floppy;
+    bool boot_scsi_ = false;
+    std::string os_disk;                           // the OS disk image found at start (even when booting from SCSI)
     std::atomic<bool> lcd_{false};
     std::string scsi_folder;                       // chosen folder, "" = default
     std::string app_dir;                           // the stand-alone program's folder (from the .cfg)

@@ -12,7 +12,8 @@ This package contains the source code; build it once on your Mac.
 2. ROMs and OS disk
    Copy the ASR-10 ROMs and the OS floppy disk image (os353.img) into the "roms" folder
    (next to this file). They are bundled into the app and the plug-in.
-   Alternatively, put them in  ~/Library/Application Support/Ensoniq/ASR10emu/roms
+   (The ROMs can alternatively go in ~/Library/Application Support/Ensoniq/ASR10emu/roms; the OS disk
+   image is only taken from the "roms" folder, never from there.)
 
 3. Build
    In Terminal, inside this folder:
@@ -32,6 +33,10 @@ This package contains the source code; build it once on your Mac.
    - SCSI disks: by default the "scsi" folder inside that same folder (names HD0.img,
      CD5.iso, ...), or any image larger than 2 MB dragged onto the window. Another folder and
      new formatted disks (50 MB to 2 GB): View > Options > SCSI drives.
+
+   Boot from SCSI: Options > SCSI drives > Boot from > "SCSI drive (no floppy at start)" starts with an empty
+   floppy drive and boots from a SCSI drive that has the OS (or: open the app with --boot scsi). A red LED
+   above the floppy drive blinks on SCSI activity.
 
 5. The VST3 plug-in (instrument)
    - It appears as "ASR-10 Emulator" in any VST3 host (Cubase, Studio One, Reaper, Bitwig,

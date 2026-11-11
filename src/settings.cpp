@@ -37,6 +37,7 @@ bool Settings::load(const std::string &file) {
         else if (k == "display") lcd = (v == "lcd");
         else if (k == "scsi_dir") scsi_dir = v;
         else if (k == "app_dir") app_dir = v;
+        else if (k == "boot") boot_scsi = v == "scsi";
     }
     fclose(f);
     if (in_left < 0) in_left = 0;
@@ -58,6 +59,7 @@ bool Settings::save() const {
     fprintf(f, "# 1 = show the keyboard strip below the panel (F9 / View > Show Keyboard)\nshow_keyboard=%d\n", show_keyboard ? 1 : 0);
     fprintf(f, "# display: vfd (the original) or lcd (purple graphic LCD)\ndisplay=%s\n", lcd ? "lcd" : "vfd");
     fprintf(f, "# folder of the SCSI drive images (HD0.img, CD5.iso ...); empty = \"scsi\" next to the program\nscsi_dir=%s\n", scsi_dir.c_str());
+    fprintf(f, "# start-up: floppy = load the OS disk image into the floppy drive; scsi = no floppy, boot from a SCSI drive\nboot=%s\n", boot_scsi ? "scsi" : "floppy");
     fprintf(f, "# folder of the program (written by it; the VST3 plug-in looks for the ROMs and disks there)\napp_dir=%s\n", app_dir.c_str());
     fclose(f);
     return true;

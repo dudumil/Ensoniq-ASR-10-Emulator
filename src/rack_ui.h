@@ -17,6 +17,7 @@ struct RackState {
     const bool *held = nullptr;        // held[panel button index], 64 entries
     float volume = 1, data = 0.5f;     // slider positions 0..1 (1 = top)
     bool disk = false, drive_busy = false;
+    uint32_t scsi_activity = 0;        // SCSI bus activity counter: the LED over the floppy drive blinks when it changes
     float in_left = 0, in_right = 0;   // input peak since the last frame (0..1)
     bool power_held = false;
     bool audio_led[4] = {};            // Audio Track A/B: Selected (yellow), Source Monitor (red)
@@ -47,6 +48,8 @@ public:
 
 private:
     float K;
+    uint32_t scsi_seen = 0, scsi_seen_t = 0;   // last activity count and when it changed (LED hold)
+    bool scsi_seen_init = false, scsi_hit = false;
     SDL_Renderer *R = nullptr;
     SDL_Texture *plate = nullptr, *glow = nullptr;
     std::vector<SDL_Texture *> legend;

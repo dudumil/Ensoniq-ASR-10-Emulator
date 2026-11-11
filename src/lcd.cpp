@@ -117,14 +117,15 @@ namespace {
 struct Slot { int col, row; bool right; };
 Slot slot_of(const char *t) {
     auto is = [&](std::initializer_list<const char *> l) { for (const char *n : l) if (!strcmp(t, n)) return true; return false; };
+    // left: INST / BANK, SYSTEM / MACRO, SEQ / SONG ... share one column, the second row directly under the first
     if (is({ "INST", "MIDI", "SYSTEM", "LAYER", "SEQ" })) return { 64, 0, false };
-    if (is({ "SONG" })) return { 64, 1, false };
-    if (is({ "PITCH", "FILTER", "AMP", "ENV", "LFO", "WAVE" })) return { 120, 0, false };
-    if (is({ "MACRO", "BANK" })) return { 120, 1, false };
+    if (is({ "SONG", "MACRO", "BANK" })) return { 64, 1, false };
+    if (is({ "PITCH", "FILTER", "AMP", "ENV" })) return { 120, 0, false };
+    if (is({ "LFO", "WAVE" })) return { 120, 1, false };
     if (is({ "ODUB", "REC", "PLAY", "STOP" })) return { LEG_RIGHT, 0, true };
     if (is({ "TRACK", "BAR", "BEAT", "CLOCK" })) return { LEG_RIGHT, 1, true };
-    if (is({ "STEP" })) return { LEG_RIGHT - 56, 0, true };
-    return { LEG_RIGHT - 56, 1, true };                       // REP
+    if (is({ "STEP" })) return { 147, 0, false };
+    return { 147, 1, false };                                 // REP, under STEP
 }
 }
 

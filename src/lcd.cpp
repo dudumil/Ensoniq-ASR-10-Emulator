@@ -11,24 +11,6 @@
 #include <vector>
 
 namespace {
-static const uint8_t FONT5X7[64][5] = {   // codes $20-$5F, one byte per column (bit 0 = top row)
-    {0x00,0x00,0x00,0x00,0x00}, {0x00,0x00,0x5F,0x00,0x00}, {0x00,0x07,0x00,0x07,0x00}, {0x14,0x7F,0x14,0x7F,0x14},
-    {0x24,0x2A,0x7F,0x2A,0x12}, {0x23,0x13,0x08,0x64,0x62}, {0x36,0x49,0x55,0x22,0x50}, {0x00,0x05,0x03,0x00,0x00},
-    {0x00,0x1C,0x22,0x41,0x00}, {0x00,0x41,0x22,0x1C,0x00}, {0x14,0x08,0x3E,0x08,0x14}, {0x08,0x08,0x3E,0x08,0x08},
-    {0x00,0x50,0x30,0x00,0x00}, {0x08,0x08,0x08,0x08,0x08}, {0x00,0x60,0x60,0x00,0x00}, {0x20,0x10,0x08,0x04,0x02},
-    {0x3E,0x51,0x49,0x45,0x3E}, {0x00,0x42,0x7F,0x40,0x00}, {0x42,0x61,0x51,0x49,0x46}, {0x21,0x41,0x45,0x4B,0x31},
-    {0x18,0x14,0x12,0x7F,0x10}, {0x27,0x45,0x45,0x45,0x39}, {0x3C,0x4A,0x49,0x49,0x30}, {0x01,0x71,0x09,0x05,0x03},
-    {0x36,0x49,0x49,0x49,0x36}, {0x06,0x49,0x49,0x29,0x1E}, {0x00,0x36,0x36,0x00,0x00}, {0x00,0x56,0x36,0x00,0x00},
-    {0x08,0x14,0x22,0x41,0x00}, {0x14,0x14,0x14,0x14,0x14}, {0x00,0x41,0x22,0x14,0x08}, {0x02,0x01,0x51,0x09,0x06},
-    {0x32,0x49,0x79,0x41,0x3E}, {0x7E,0x11,0x11,0x11,0x7E}, {0x7F,0x49,0x49,0x49,0x36}, {0x3E,0x41,0x41,0x41,0x22},
-    {0x7F,0x41,0x41,0x22,0x1C}, {0x7F,0x49,0x49,0x49,0x41}, {0x7F,0x09,0x09,0x09,0x01}, {0x3E,0x41,0x49,0x49,0x7A},
-    {0x7F,0x08,0x08,0x08,0x7F}, {0x00,0x41,0x7F,0x41,0x00}, {0x20,0x40,0x41,0x3F,0x01}, {0x7F,0x08,0x14,0x22,0x41},
-    {0x7F,0x40,0x40,0x40,0x40}, {0x7F,0x02,0x0C,0x02,0x7F}, {0x7F,0x04,0x08,0x10,0x7F}, {0x3E,0x41,0x41,0x41,0x3E},
-    {0x7F,0x09,0x09,0x09,0x06}, {0x3E,0x41,0x51,0x21,0x5E}, {0x7F,0x09,0x19,0x29,0x46}, {0x46,0x49,0x49,0x49,0x31},
-    {0x01,0x01,0x7F,0x01,0x01}, {0x3F,0x40,0x40,0x40,0x3F}, {0x1F,0x20,0x40,0x20,0x1F}, {0x3F,0x40,0x38,0x40,0x3F},
-    {0x63,0x14,0x08,0x14,0x63}, {0x07,0x08,0x70,0x08,0x07}, {0x61,0x51,0x49,0x45,0x43}, {0x00,0x7F,0x41,0x41,0x00},
-    {0x02,0x04,0x08,0x10,0x20}, {0x00,0x41,0x41,0x7F,0x00}, {0x04,0x02,0x01,0x02,0x04}, {0x40,0x40,0x40,0x40,0x40}
-};
 
 constexpr uint32_t TEXT = 0xeceab8;                 // lit pixels (pale yellow-green)
 constexpr uint32_t BACK_TL = 0x8d66ee, BACK_TR = 0xab6cf3, BACK_BL = 0x6e6ae7, BACK_BR = 0x9b66ee;
@@ -40,14 +22,19 @@ constexpr uint32_t BACK_TL = 0x8d66ee, BACK_TR = 0xab6cf3, BACK_BL = 0x6e6ae7, B
 constexpr int PX_W = 240, PX_H = 58;
 constexpr float CELL = LcdRenderer::WIDTH / PX_W;       // logical px per LCD pixel
 constexpr int TEXT_X = 32, TEXT_Y = 34;                 // first text cell
-constexpr int LEG_LEFT = 5, LEG_RIGHT = 236;           // the mode box's left edge; right edge of the right-hand legends
+constexpr int LEG_LEFT = 5, LEG_RIGHT = 235;           // the mode box's left edge; right edge of the right-hand legends
 constexpr int LEG_ROW0 = 3, LEG_STEP = 11;              // legend rows
 constexpr int DU = 4;                                   // texels per LCD pixel in the textures
 
 void colour(SDL_Renderer *R, uint32_t c, uint8_t a = 255) { SDL_SetRenderDrawColor(R, c >> 16, (c >> 8) & 255, c & 255, a); }
 
-const uint8_t *glyph(unsigned char ch) { return (ch >= 0x20 && ch < 0x60) ? FONT5X7[ch - 0x20] : FONT5X7[0]; }
-bool dot5x7(const uint8_t *g, int c, int r) { return c >= 0 && c < 5 && r >= 0 && r < 7 && (g[c] >> r & 1); }
+// legend letters: 6 rows (the first letter of a word is a tall capital, the others small ones, one row
+// lower), cell column 0..7; word cell i starts at pixel 8 * i
+bool px_leg(const char *word, int i, int c, int r) {
+    unsigned char ch = (unsigned char)word[i];
+    if (ch < 'A' || ch > 'Z' || c < 0 || c >= 8 || r < 0 || r >= 6) return false;
+    return ((i == 0 ? LCD_LEG_CAP : LCD_LEG_SMALL)[ch - 'A'][r] >> c & 1);
+}
 // the text line's pixels: 7 x 14, copied from the module (lcd_font.h; most glyphs are 6 wide)
 // the ASR sends 0.-9. (a digit with its decimal point) as ! # % ( ) : ; [ \ ]
 int dotted_digit(int code) {
@@ -86,44 +73,56 @@ void tint(SDL_Texture *t, uint32_t c) {
 
 LcdRenderer::~LcdRenderer() {
     for (auto *t : big) if (t) SDL_DestroyTexture(t);
-    for (auto *t : small_) if (t) SDL_DestroyTexture(t);
+    for (auto *t : cur) if (t) SDL_DestroyTexture(t);
+    for (auto *t : legc) if (t) SDL_DestroyTexture(t);
+    for (auto *t : legs) if (t) SDL_DestroyTexture(t);
     for (auto *t : inv) if (t) SDL_DestroyTexture(t);
     for (auto *t : big_g) if (t) SDL_DestroyTexture(t);
-    for (auto *t : small_g) if (t) SDL_DestroyTexture(t);
+    for (auto *t : cur_g) if (t) SDL_DestroyTexture(t);
+    for (auto *t : legc_g) if (t) SDL_DestroyTexture(t);
+    for (auto *t : legs_g) if (t) SDL_DestroyTexture(t);
     for (auto *t : inv_g) if (t) SDL_DestroyTexture(t);
-    for (SDL_Texture *t : { meter, underline, meter_g, underline_g }) if (t) SDL_DestroyTexture(t);
+    for (SDL_Texture *t : { meter, meter_g }) if (t) SDL_DestroyTexture(t);
 }
 
 bool LcdRenderer::init(SDL_Renderer *r) {
     R = r;
     SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "1");
     for (int ch = 0; ch < 64; ch++) {
-        const uint8_t *g = FONT5X7[ch];
-        std::function<bool(int, int)> fb = [&](int c, int rr) { return px_big(ch, c, rr); };
+        std::function<bool(int, int)> fb = [ch](int c, int rr) { return px_big(ch, c, rr); };
         const int dd = dotted_digit(ch + 0x20);              // codes that are a digit with a decimal point
         if (dd >= 0) fb = [dd](int c, int rr) {
             if (px_big(dd + 0x10, c, rr)) return true;
             const bool wide = dd == 4;                       // the 4 is 7 wide: its dot is one pixel narrower
             return rr >= 12 && c >= (wide ? 7 : 6) && c < 8;
         };
-        auto fs = [&](int c, int rr) { return dot5x7(g, c, rr); };
         big[ch] = dots_texture(R, 8, 14, fb); big_g[ch] = dots_texture(R, 8, 14, fb, true);
-        small_[ch] = dots_texture(R, 5, 7, fs); small_g[ch] = dots_texture(R, 5, 7, fs, true);
-        if (!big[ch] || !small_[ch] || !big_g[ch] || !small_g[ch]) return false;
+        // the selected field is shown inverted: a lit box one pixel bigger than the character, the character cut out
+        auto fc = [fb](int c, int rr) {                      // (pixel 7 of a dotted digit falls outside the box)
+            if (c == 0 || rr == 0 || rr == 15) return true;
+            return !fb(c - 1, rr - 1);
+        };
+        cur[ch] = dots_texture(R, 8, 16, fc); cur_g[ch] = dots_texture(R, 8, 16, fc, true);
+        if (!big[ch] || !big_g[ch] || !cur[ch] || !cur_g[ch]) return false;
+    }
+    for (int k = 0; k < 26; k++) {
+        auto fcap = [k](int c, int rr) { return rr >= 0 && rr < 6 && c >= 0 && c < 8 && (LCD_LEG_CAP[k][rr] >> c & 1); };
+        auto fsm = [k](int c, int rr) { return rr >= 0 && rr < 6 && c >= 0 && c < 8 && (LCD_LEG_SMALL[k][rr] >> c & 1); };
+        legc[k] = dots_texture(R, 8, 6, fcap); legc_g[k] = dots_texture(R, 8, 6, fcap, true);
+        legs[k] = dots_texture(R, 8, 6, fsm); legs_g[k] = dots_texture(R, 8, 6, fsm, true);
+        if (!legc[k] || !legs[k] || !legc_g[k] || !legs_g[k]) return false;
     }
     auto fm = [](int c, int) { return c >= 1 && c <= 4; };
-    auto fu = [](int, int) { return true; };
     meter = dots_texture(R, 6, 14, fm); meter_g = dots_texture(R, 6, 14, fm, true);
-    underline = dots_texture(R, 6, 2, fu); underline_g = dots_texture(R, 6, 2, fu, true);
     const int n = (int)(sizeof(VFD_LEGENDS) / sizeof(VFD_LEGENDS[0]));
     for (int i = 0; i < n && i < 32; i++) {            // the inverted legends: a lit box, the letters cut out
         const char *t = VFD_LEGENDS[i].text; const int len = (int)strlen(t);
-        auto fi = [&](int c, int rr) {
-            int ch = (c - 1) / 8, gx = (c - 1) % 8, gy = rr - 1;
-            if (c == 0) return true;
-            return !(gx >= 0 && gx < 5 && gy >= 0 && gy < 7 && dot5x7(glyph((unsigned char)t[ch]), gx, gy));
+        auto fi = [t](int c, int rr) {                    // box: 8 pixels per letter, 1 pixel border all round
+            if (c == 0 || rr == 0 || rr == 7) return true;
+            int ch = (c - 1) / 8, gx = (c - 1) % 8;
+            return !px_leg(t, ch, gx, rr - 1);
         };
-        inv[i] = dots_texture(R, len * 8 + 1, 9, fi); inv_g[i] = dots_texture(R, len * 8 + 1, 9, fi, true);
+        inv[i] = dots_texture(R, len * 8, 8, fi); inv_g[i] = dots_texture(R, len * 8, 8, fi, true);
         if (!inv[i] || !inv_g[i]) return false;
     }
     return true;
@@ -194,20 +193,16 @@ void LcdRenderer::draw(const Panel &p, float x, float y, uint32_t ticks, float s
             SDL_RenderCopyF(R, grid, nullptr, &d);
         }
     };
-    auto legend_w = [&](const char *t) { return (float)(strlen(t) * 8 + 1) * u; };
+    auto legend_w = [&](const char *t) { return (float)(strlen(t) * 8) * u; };
     auto draw_legend = [&](int idx, float px, int row, bool inverted, bool letters) {   // px = left edge in LCD pixels
         const char *t = VFD_LEGENDS[idx].text;
         const float lx = x + px * u, ly = y + (float)(LEG_ROW0 + LEG_STEP * row) * u;
-        if (inverted) {
-            SDL_FRect d{ lx, ly, legend_w(t), 9 * u };
-            blit(inv[idx], inv_g[idx], d);
-        }
-        if (!inverted || !letters) {
+        if (inverted) blit(inv[idx], inv_g[idx], SDL_FRect{ lx, ly, legend_w(t), 8 * u });
+        if (!inverted || !letters) {                         // (an inverted box without its letters: they are filled in)
             for (size_t i = 0; t[i]; i++) {
-                unsigned char ch = (unsigned char)t[i];
-                int gi = (ch >= 0x20 && ch < 0x60) ? ch - 0x20 : 0;
-                SDL_FRect d{ lx + (float)(1 + i * 8) * u, ly + u, 5 * u, 7 * u };
-                blit(small_[gi], small_g[gi], d);
+                int k = t[i] - 'A'; if (k < 0 || k >= 26) continue;
+                SDL_FRect d{ lx + (float)(1 + i * 8) * u, ly + u, 8 * u, 6 * u };
+                blit(i == 0 ? legc[k] : legs[k], i == 0 ? legc_g[k] : legs_g[k], d);
             }
         }
     };
@@ -225,10 +220,15 @@ void LcdRenderer::draw(const Panel &p, float x, float y, uint32_t ticks, float s
         const float cx = x + (float)(TEXT_X + 8 * i) * u, cy = y + (float)TEXT_Y * u;
         unsigned char ch = (unsigned char)p.disp[i];
         SDL_Texture *tx = nullptr, *tg = nullptr;
+        const int gi = (ch >= 0x20 && ch < 0x60) ? ch - 0x20 : 0;
+        if (p.attr[i] & 3) {                                                // selected field / edit cursor: inverted
+            SDL_FRect d{ cx - u, cy - u, 8 * u, 16 * u };
+            blit(cur[gi], cur_g[gi], d);
+            continue;
+        }
         if (ch == ' ' && i < p.meter) { tx = meter; tg = meter_g; }          // level meter: a lit bar
         else if (ch > ' ' && ch < 0x60) { tx = big[ch - 0x20]; tg = big_g[ch - 0x20]; }
         if (tx) blit(tx, tg, SDL_FRect{ cx, cy, (tx == meter ? 6 : 8) * u, 14 * u });
-        if (p.attr[i] & 3) blit(underline, underline_g, SDL_FRect{ cx, cy + 16 * u, 6 * u, 2 * u });   // underline / edit cursor
     }
     SDL_SetRenderDrawBlendMode(R, old);
 }

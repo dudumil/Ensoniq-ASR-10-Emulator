@@ -18,6 +18,6 @@ public:
 
 private:
     SDL_Renderer *R = nullptr;
-    SDL_Texture *big[64] = {}, *small_[64] = {}, *inv[32] = {}, *meter = nullptr, *underline = nullptr;
-    SDL_Texture *big_g[64] = {}, *small_g[64] = {}, *inv_g[32] = {}, *meter_g = nullptr, *underline_g = nullptr;   // the pixel grid
+    SDL_Texture *big[64] = {}, *cur[64] = {}, *legc[26] = {}, *legs[26] = {}, *inv[32] = {}, *meter = nullptr;
+    SDL_Texture *big_g[64] = {}, *cur_g[64] = {}, *legc_g[26] = {}, *legs_g[26] = {}, *inv_g[32] = {}, *meter_g = nullptr;   // the pixel grid
 };

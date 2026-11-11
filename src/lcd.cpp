@@ -35,8 +35,8 @@ bool px_leg(const char *word, int i, int c, int r) {
     if (ch < 'A' || ch > 'Z' || c < 0 || c >= 8 || r < 0 || r >= 6) return false;
     return ((i == 0 ? LCD_LEG_CAP : LCD_LEG_SMALL)[ch - 'A'][r] >> c & 1);
 }
-// the text line's pixels: an 8 x 14 cell copied from the module (lcd_font.h)
-bool px_big(int ch, int c, int r) { return c >= 0 && c < 8 && r >= 0 && r < 14 && (LCD_BIG[ch][r] >> c & 1); }
+// the text line's pixels: an 8 x 16 cell copied from the module (lcd_font.h)
+bool px_big(int ch, int c, int r) { return c >= 0 && c < 8 && r >= 0 && r < 16 && (LCD_BIG[ch][r] >> c & 1); }
 
 // a w x h dot matrix as a white alpha texture, DU x DU texels per dot. grid = false: solid
 // pixels; grid = true: only the thin gaps between the pixels (the dot grid you see on the module,
@@ -63,9 +63,30 @@ void tint(SDL_Texture *t, uint32_t c) {
 }
 }
 
+namespace {
+// The BAR / STEP / REP legends have a line under them that bends down and ends in a short bar over the digits they
+// mean (as on the module). Pixels relative to the legend's first letter cell (x) and its top row (y).
+struct Ptr { const char *name; std::vector<std::pair<int, int>> px; };
+std::vector<Ptr> make_pointers() {
+    std::vector<Ptr> v(3);
+    auto line = [](Ptr &p, int x0, int x1, int y) { for (int x = x0; x <= x1; x++) p.px.push_back({ x, y }); };
+    v[0].name = "BAR";                                                   // under BAR, then down to the right, bar over cell 1 of the field
+    line(v[0], 0, 24, 8); for (int k = 0; k < 5; k++) v[0].px.push_back({ 25 + k, 9 + k }); line(v[0], 24, 31, 14);
+    v[1].name = "STEP";                                                  // short line under "ST", down to the right, bar over cells 3-4
+    line(v[1], 0, 9, 8); for (int k = 0; k < 5; k++) v[1].px.push_back({ 10 + k, 9 + k }); line(v[1], 8, 23, 14);
+    v[2].name = "REP";                                                   // under REP, down to the left, bar over cells 5-6
+    line(v[2], -2, 23, 8); for (int k = 0; k < 5; k++) v[2].px.push_back({ -3 - k, 9 + k }); line(v[2], -16, -1, 14);
+    return v;
+}
+const std::vector<Ptr> &pointers() { static const std::vector<Ptr> p = make_pointers(); return p; }
+const int PTR_X0 = -16, PTR_W = 48, PTR_Y0 = 8, PTR_H = 7;             // common texture box
+}
+
 LcdRenderer::~LcdRenderer() {
     for (auto *t : big) if (t) SDL_DestroyTexture(t);
     for (auto *t : cur) if (t) SDL_DestroyTexture(t);
+    for (auto *t : ptr) if (t) SDL_DestroyTexture(t);
+    for (auto *t : ptr_g) if (t) SDL_DestroyTexture(t);
     for (auto *t : legc) if (t) SDL_DestroyTexture(t);
     for (auto *t : legs) if (t) SDL_DestroyTexture(t);
     for (auto *t : inv) if (t) SDL_DestroyTexture(t);
@@ -82,9 +103,9 @@ bool LcdRenderer::init(SDL_Renderer *r) {
     SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "1");
     for (int ch = 0; ch < 64; ch++) {
         auto fb = [ch](int c, int rr) { return px_big(ch, c, rr); };
-        big[ch] = dots_texture(R, 8, 14, fb); big_g[ch] = dots_texture(R, 8, 14, fb, true);
+        big[ch] = dots_texture(R, 8, 16, fb); big_g[ch] = dots_texture(R, 8, 16, fb, true);
         // the selected field is shown inverted: the whole 8 x 16 cell lit, the character cut out
-        auto fc = [fb](int c, int rr) { return rr == 0 || rr == 15 || !fb(c, rr - 1); };
+        auto fc = [fb](int c, int rr) { return !fb(c, rr); };
         cur[ch] = dots_texture(R, 8, 16, fc); cur_g[ch] = dots_texture(R, 8, 16, fc, true);
         if (!big[ch] || !big_g[ch] || !cur[ch] || !cur_g[ch]) return false;
     }
@@ -95,8 +116,17 @@ bool LcdRenderer::init(SDL_Renderer *r) {
         legs[k] = dots_texture(R, 8, 6, fsm); legs_g[k] = dots_texture(R, 8, 6, fsm, true);
         if (!legc[k] || !legs[k] || !legc_g[k] || !legs_g[k]) return false;
     }
-    auto fm = [](int c, int) { return c >= 2 && c <= 5; };
-    meter = dots_texture(R, 8, 14, fm); meter_g = dots_texture(R, 8, 14, fm, true);
+    for (size_t k = 0; k < 3; k++) {                    // the lines under BAR / STEP / REP
+        const auto &px = pointers()[k].px;
+        auto fp = [&px](int c, int rr) {
+            for (const auto &q : px) if (q.first - PTR_X0 == c && q.second - PTR_Y0 == rr) return true;
+            return false;
+        };
+        ptr[k] = dots_texture(R, PTR_W, PTR_H, fp); ptr_g[k] = dots_texture(R, PTR_W, PTR_H, fp, true);
+        if (!ptr[k] || !ptr_g[k]) return false;
+    }
+    auto fm = [](int c, int rr) { return c >= 2 && c <= 5 && rr >= 1 && rr <= 14; };
+    meter = dots_texture(R, 8, 16, fm); meter_g = dots_texture(R, 8, 16, fm, true);
     const int n = (int)(sizeof(VFD_LEGENDS) / sizeof(VFD_LEGENDS[0]));
     for (int i = 0; i < n && i < 32; i++) {            // the inverted legends: a lit box, the letters cut out
         const char *t = VFD_LEGENDS[i].text; const int len = (int)strlen(t);
@@ -114,7 +144,7 @@ bool LcdRenderer::init(SDL_Renderer *r) {
 namespace {
 // Every legend has one fixed place on the screen (the module never moves them). Legends that
 // share a place are never lit together, so the first one that is lit is drawn.
-struct Slot { int col, row; bool right; };
+struct Slot { int col, row; bool right; int y = -1; };      // y: pixel row of the legend's top, -1 = by row
 Slot slot_of(const char *t) {
     auto is = [&](std::initializer_list<const char *> l) { for (const char *n : l) if (!strcmp(t, n)) return true; return false; };
     // left: INST / BANK, SYSTEM / MACRO, SEQ / SONG ... share one column, the second row directly under the first
@@ -124,11 +154,12 @@ Slot slot_of(const char *t) {
     if (is({ "LFO", "WAVE" })) return { 120, 1, false };
     if (is({ "ODUB", "REC", "PLAY", "STOP" })) return { LEG_RIGHT, 0, true };
     if (is({ "TRACK", "BEAT", "CLOCK" })) return { LEG_RIGHT, 1, true };
-    // the song position "003. 07.01" sits in the last 8 text cells: STEP over the 003, BAR over the 07, REP over the 01
+    // the song position "003. 07.01" fills the last 8 text cells (14-21), as in "002. 02.01.": BAR sits two cells
+    // before it, STEP over its 3rd cell, REP after it; each has a line under it that points at its digits
     auto cell = [](int c) { return TEXT_X + 8 * c - 1; };
-    if (is({ "STEP" })) return { cell(14), 1, false };
-    if (is({ "BAR" })) return { cell(18), 0, false };
-    return { cell(20), 1, false };                           // REP
+    if (is({ "BAR" })) return { cell(12), 2, false, 11 };
+    if (is({ "STEP" })) return { cell(16), 2, false, 11 };
+    return { cell(21), 2, false, 11 };                       // REP
 }
 }
 
@@ -155,15 +186,20 @@ void LcdRenderer::draw(const Panel &p, float x, float y, uint32_t ticks, float s
     // other lit legends of the left group are stacked in two rows from pixel 64; those of the
     // right group (ENV ... STOP, AMP ... CLOCK) likewise from the right edge.
     int mode = -1, mode_st = 0;
+    bool rep_lit = false;
     const int n = (int)(sizeof(VFD_LEGENDS) / sizeof(VFD_LEGENDS[0]));
     struct Placed { int idx; Slot sl; int st; };
     std::vector<Placed> placed;
+    auto state = [&](int i) { const VfdLegend &l = VFD_LEGENDS[i]; return (l.group == 0 ? p.ind2 : p.ind3)[l.index & 15] % 3; };
+    for (int i = 0; i < n; i += 5)                          // LOAD, CMD, EDIT: the first legend of each row of the first group
+        if (VFD_LEGENDS[i].group == 0 && state(i)) { mode = i; mode_st = state(i); }
+    const bool load = mode >= 0 && !strcmp(VFD_LEGENDS[mode].text, "LOAD");
     for (int i = 0; i < n; i++) {
         const VfdLegend &l = VFD_LEGENDS[i];
-        int st = (l.group == 0 ? p.ind2 : p.ind3)[l.index & 15] % 3;
-        if (!st) continue;
-        bool first_col = l.group == 0 && (i % 5) == 0;      // LOAD, CMD, EDIT
-        if (first_col) { mode = i; mode_st = st; continue; }
+        int st = state(i);
+        if (!st || i == mode || (l.group == 0 && (i % 5) == 0)) continue;
+        if (!strcmp(l.text, "REP")) rep_lit = true;
+        if (!strcmp(l.text, "SONG") && !load) continue;     // the SONG light only shows while loading
         Slot sl = slot_of(l.text);
         bool taken = false;
         for (const Placed &q : placed) if (q.sl.col == sl.col && q.sl.row == sl.row && q.sl.right == sl.right) taken = true;
@@ -181,9 +217,9 @@ void LcdRenderer::draw(const Panel &p, float x, float y, uint32_t ticks, float s
         }
     };
     auto legend_w = [&](const char *t) { return (float)(strlen(t) * 8) * u; };
-    auto draw_legend = [&](int idx, float px, int row, bool inverted, bool letters) {   // px = left edge in LCD pixels
+    auto draw_legend = [&](int idx, float px, int row, bool inverted, bool letters, int ytop = -1) {   // px = left edge in LCD pixels
         const char *t = VFD_LEGENDS[idx].text;
-        const float lx = x + px * u, ly = y + (float)(LEG_ROW0 + LEG_STEP * row) * u;
+        const float lx = x + px * u, ly = y + (float)(ytop >= 0 ? ytop : LEG_ROW0 + LEG_STEP * row) * u;
         if (inverted) blit(inv[idx], inv_g[idx], SDL_FRect{ lx, ly, legend_w(t), 8 * u });
         if (!inverted || !letters) {                         // (an inverted box without its letters: they are filled in)
             for (size_t i = 0; t[i]; i++) {
@@ -199,13 +235,16 @@ void LcdRenderer::draw(const Panel &p, float x, float y, uint32_t ticks, float s
         if (!(q.st == 1 || blink)) continue;
         float px = (float)q.sl.col;
         if (q.sl.right) px -= legend_w(VFD_LEGENDS[q.idx].text) / u;
-        draw_legend(q.idx, px, q.sl.row, false, true);
+        draw_legend(q.idx, px, q.sl.row, false, true, q.sl.y);
+        for (size_t k = 0; k < 3; k++) if (!strcmp(pointers()[k].name, VFD_LEGENDS[q.idx].text))
+            blit(ptr[k], ptr_g[k], SDL_FRect{ x + (px + 1 + PTR_X0) * u, y + (float)(q.sl.y + 1 + PTR_Y0) * u, PTR_W * u, PTR_H * u });
     }
 
     // ---- the text line
     for (int i = 0; i < Panel::COLS; i++) {
         const float cx = x + (float)(TEXT_X + 8 * i) * u, cy = y + (float)TEXT_Y * u;
         unsigned char ch = (unsigned char)p.disp[i];
+        if (i == Panel::COLS - 1 && rep_lit && ch >= '0' && ch <= '9') ch = (unsigned char)"!#%():;[\\]"[ch - '0'];   // the last digit of REP always has its dot
         SDL_Texture *tx = nullptr, *tg = nullptr;
         const int gi = (ch >= 0x20 && ch < 0x60) ? ch - 0x20 : 0;
         if (p.attr[i] & 3) {                                                // selected field / edit cursor: inverted
@@ -215,7 +254,7 @@ void LcdRenderer::draw(const Panel &p, float x, float y, uint32_t ticks, float s
         }
         if (ch == ' ' && i < p.meter) { tx = meter; tg = meter_g; }          // level meter: a lit bar
         else if (ch > ' ' && ch < 0x60) { tx = big[ch - 0x20]; tg = big_g[ch - 0x20]; }
-        if (tx) blit(tx, tg, SDL_FRect{ cx, cy, 8 * u, 14 * u });
+        if (tx) blit(tx, tg, SDL_FRect{ cx, cy - u, 8 * u, 16 * u });
     }
     SDL_SetRenderDrawBlendMode(R, old);
 }

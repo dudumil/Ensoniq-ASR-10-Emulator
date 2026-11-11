@@ -199,7 +199,7 @@ void LcdRenderer::draw(const Panel &p, float x, float y, uint32_t ticks, float s
         int st = state(i);
         if (!st || i == mode || (l.group == 0 && (i % 5) == 0)) continue;
         if (!strcmp(l.text, "REP")) rep_lit = true;
-        if (!strcmp(l.text, "SONG") && !load) continue;     // the SONG light only shows while loading
+        if (!strcmp(l.text, "SONG") && (!load || l.group != 0)) continue;   // SONG: only as the file type while loading a song (not for the song selected in the sequencer)
         Slot sl = slot_of(l.text);
         bool taken = false;
         for (const Placed &q : placed) if (q.sl.col == sl.col && q.sl.row == sl.row && q.sl.right == sl.right) taken = true;

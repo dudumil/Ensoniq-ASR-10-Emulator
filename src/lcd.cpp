@@ -21,7 +21,7 @@ constexpr uint32_t BACK_TL = 0x8d66ee, BACK_TR = 0xab6cf3, BACK_BL = 0x6e6ae7, B
 // The legends use the same character set at 1 pixel thickness, 8 pixels per letter.
 constexpr int PX_W = 240, PX_H = 58;
 constexpr float CELL = LcdRenderer::WIDTH / PX_W;       // logical px per LCD pixel
-constexpr int TEXT_X = 32, TEXT_Y = 34;                 // first text cell
+constexpr int TEXT_X = 31, TEXT_Y = 34;                 // first text cell
 constexpr int LEG_LEFT = 5, LEG_RIGHT = 235;           // the mode box's left edge; right edge of the right-hand legends
 constexpr int LEG_ROW0 = 3, LEG_STEP = 11;              // legend rows
 constexpr int DU = 4;                                   // texels per LCD pixel in the textures
@@ -35,16 +35,8 @@ bool px_leg(const char *word, int i, int c, int r) {
     if (ch < 'A' || ch > 'Z' || c < 0 || c >= 8 || r < 0 || r >= 6) return false;
     return ((i == 0 ? LCD_LEG_CAP : LCD_LEG_SMALL)[ch - 'A'][r] >> c & 1);
 }
-// the text line's pixels: 7 x 14, copied from the module (lcd_font.h; most glyphs are 6 wide)
-// the ASR sends 0.-9. (a digit with its decimal point) as ! # % ( ) : ; [ \ ]
-int dotted_digit(int code) {
-    switch (code) {
-    case '!': return 0; case '#': return 1; case '%': return 2; case '(': return 3; case ')': return 4;
-    case ':': return 5; case ';': return 6; case '[': return 7; case '\\': return 8; case ']': return 9;
-    }
-    return -1;
-}
-bool px_big(int ch, int c, int r) { return c >= 0 && c < 7 && r >= 0 && r < 14 && (LCD_BIG[ch][r] >> c & 1); }
+// the text line's pixels: an 8 x 14 cell copied from the module (lcd_font.h)
+bool px_big(int ch, int c, int r) { return c >= 0 && c < 8 && r >= 0 && r < 14 && (LCD_BIG[ch][r] >> c & 1); }
 
 // a w x h dot matrix as a white alpha texture, DU x DU texels per dot. grid = false: solid
 // pixels; grid = true: only the thin gaps between the pixels (the dot grid you see on the module,
@@ -89,19 +81,10 @@ bool LcdRenderer::init(SDL_Renderer *r) {
     R = r;
     SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "1");
     for (int ch = 0; ch < 64; ch++) {
-        std::function<bool(int, int)> fb = [ch](int c, int rr) { return px_big(ch, c, rr); };
-        const int dd = dotted_digit(ch + 0x20);              // codes that are a digit with a decimal point
-        if (dd >= 0) fb = [dd](int c, int rr) {
-            if (px_big(dd + 0x10, c, rr)) return true;
-            const bool wide = dd == 4;                       // the 4 is 7 wide: its dot is one pixel narrower
-            return rr >= 12 && c >= (wide ? 7 : 6) && c < 8;
-        };
+        auto fb = [ch](int c, int rr) { return px_big(ch, c, rr); };
         big[ch] = dots_texture(R, 8, 14, fb); big_g[ch] = dots_texture(R, 8, 14, fb, true);
-        // the selected field is shown inverted: a lit box one pixel bigger than the character, the character cut out
-        auto fc = [fb](int c, int rr) {                      // (pixel 7 of a dotted digit falls outside the box)
-            if (c == 0 || rr == 0 || rr == 15) return true;
-            return !fb(c - 1, rr - 1);
-        };
+        // the selected field is shown inverted: the whole 8 x 16 cell lit, the character cut out
+        auto fc = [fb](int c, int rr) { return rr == 0 || rr == 15 || !fb(c, rr - 1); };
         cur[ch] = dots_texture(R, 8, 16, fc); cur_g[ch] = dots_texture(R, 8, 16, fc, true);
         if (!big[ch] || !big_g[ch] || !cur[ch] || !cur_g[ch]) return false;
     }
@@ -112,8 +95,8 @@ bool LcdRenderer::init(SDL_Renderer *r) {
         legs[k] = dots_texture(R, 8, 6, fsm); legs_g[k] = dots_texture(R, 8, 6, fsm, true);
         if (!legc[k] || !legs[k] || !legc_g[k] || !legs_g[k]) return false;
     }
-    auto fm = [](int c, int) { return c >= 1 && c <= 4; };
-    meter = dots_texture(R, 6, 14, fm); meter_g = dots_texture(R, 6, 14, fm, true);
+    auto fm = [](int c, int) { return c >= 2 && c <= 5; };
+    meter = dots_texture(R, 8, 14, fm); meter_g = dots_texture(R, 8, 14, fm, true);
     const int n = (int)(sizeof(VFD_LEGENDS) / sizeof(VFD_LEGENDS[0]));
     for (int i = 0; i < n && i < 32; i++) {            // the inverted legends: a lit box, the letters cut out
         const char *t = VFD_LEGENDS[i].text; const int len = (int)strlen(t);
@@ -222,13 +205,13 @@ void LcdRenderer::draw(const Panel &p, float x, float y, uint32_t ticks, float s
         SDL_Texture *tx = nullptr, *tg = nullptr;
         const int gi = (ch >= 0x20 && ch < 0x60) ? ch - 0x20 : 0;
         if (p.attr[i] & 3) {                                                // selected field / edit cursor: inverted
-            SDL_FRect d{ cx - u, cy - u, 8 * u, 16 * u };
+            SDL_FRect d{ cx, cy - u, 8 * u, 16 * u };
             blit(cur[gi], cur_g[gi], d);
             continue;
         }
         if (ch == ' ' && i < p.meter) { tx = meter; tg = meter_g; }          // level meter: a lit bar
         else if (ch > ' ' && ch < 0x60) { tx = big[ch - 0x20]; tg = big_g[ch - 0x20]; }
-        if (tx) blit(tx, tg, SDL_FRect{ cx, cy, (tx == meter ? 6 : 8) * u, 14 * u });
+        if (tx) blit(tx, tg, SDL_FRect{ cx, cy, 8 * u, 14 * u });
     }
     SDL_SetRenderDrawBlendMode(R, old);
 }

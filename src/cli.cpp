@@ -35,6 +35,7 @@ int main(int argc, char **argv) {
     bool write_back = false;
     std::vector<std::string> scsi_dirs, scsi_specs; bool scsi_log = false, no_scsi = false;
     std::vector<std::pair<int,int>> analog_init;
+    std::vector<std::pair<double,std::pair<int,int>>> patchev;
     std::vector<std::pair<double, std::pair<int,int>>> analog_at;
     bool trace_io = false, panel_log = false, fdc_log = false, trap_log = false, pc_hist = false;
     std::vector<std::pair<double, std::vector<uint8_t>>> midi;   // time, bytes
@@ -100,6 +101,11 @@ int main(int argc, char **argv) {
                 midi.push_back({t, {(uint8_t)(0x90 | ((ch - 1) & 15)), (uint8_t)n, (uint8_t)v}});
                 midi.push_back({t + d, {(uint8_t)(0x80 | ((ch - 1) & 15)), (uint8_t)n, 0x40}});
             }
+        } else if (a == "--patch") {   // --patch time:0|1:down  Patch Select left/right
+            double t; int i, d; if (sscanf(next().c_str(), "%lf:%d:%d", &t, &i, &d) == 3) patchev.push_back({t, {i, d}});
+        } else if (a == "--cc") {      // --cc time:controller:value[:channel]  MIDI control change
+            double t; int c, v, ch = 1;
+            if (sscanf(next().c_str(), "%lf:%d:%d:%d", &t, &c, &v, &ch) >= 3) midi.push_back({t, {(uint8_t)(0xb0 | ((ch - 1) & 15)), (uint8_t)c, (uint8_t)v}});
         } else if (a == "--key") {   // --key time:note:vel:dur (panel keyboard, note 36..96)
             double t; int n, v; double d;
             if (sscanf(next().c_str(), "%lf:%d:%d:%lf", &t, &n, &v, &d) == 4) {
@@ -241,6 +247,7 @@ int main(int argc, char **argv) {
                 }
             } else if (any) m.feed_input(buf.data(), nfr, 44100);
         }
+        for (auto &pe : patchev) if (pe.first >= 0 && pe.first <= now) { m.set_patch_select(pe.second.first, pe.second.second != 0); pe.first = -1; }
         for (auto &a2 : analog_at) if (a2.first >= 0 && a2.first <= now) { m.analog[a2.second.first] = a2.second.second; a2.first = -1; }
         for (auto &r : raws) if (r.first >= 0 && r.first <= now) { m.duart.rx_byte(1, r.second.first); m.duart.rx_byte(1, r.second.second); r.first = -1; }
         m.run(slice);

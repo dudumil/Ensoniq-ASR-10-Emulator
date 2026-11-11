@@ -36,6 +36,11 @@ public:
 
     // audio input (A/D): interleaved stereo float at `rate`; thread safe
     void feed_input(const float *lr, size_t frames, double rate);
+    // Patch Select buttons (and the rear Patch Select jack): 68302 PB10 (left) / PB11 (right), active low.
+    // A press is a falling edge, which raises the PB10/PB11 interrupt; the OS then debounces the pins.
+    // (Panel button indices 0/1 are the foot switches, which the keyboard micro reads.)
+    bool patch_button[2] = { false, false };
+    void set_patch_select(int i, bool down);
     float in_peak = 0;                  // input peak meter (reset by the consumer)
     std::atomic<float> input_gain{1.0f}; // Input Level pot: gain before the A/D (clips at full scale)
     float in_peak_ch[2] = { 0, 0 };

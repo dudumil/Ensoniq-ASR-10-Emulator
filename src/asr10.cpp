@@ -58,6 +58,8 @@ Asr10::Asr10() {
         if (!lrclk) v &= ~(1 << 3);                // audio frame clock -> PB3 (polled by the OS)
         if (audio_button[0]) v &= ~(1 << 5);       // Audio Track A button -> PB5 (function code 8)
         if (audio_button[1]) v &= ~(1 << 6);       // Audio Track B button -> PB6 (function code 9)
+        if (patch_button[0]) v &= ~(1 << 10);      // Patch Select left  -> PB10 (falling edge = interrupt)
+        if (patch_button[1]) v &= ~(1 << 11);      // Patch Select right -> PB11
         return v;
     };
     duart.irq = [this](bool s) { imp.set_irq_pin(6, s); };
@@ -144,6 +146,12 @@ bool Asr10::load_rom_interleaved(const std::string &path) {
     bool ok = fread(rom.data(), 1, sz, f) == (size_t)sz;
     fclose(f);
     return ok;
+}
+
+void Asr10::set_patch_select(int i, bool down) {
+    if (i < 0 || i > 1 || patch_button[i] == down) return;
+    patch_button[i] = down;
+    imp.pb_pin(10 + i, !down);                 // a press is a falling edge: PB10/PB11 interrupt, then the OS polls the pin
 }
 
 void Asr10::reset() {

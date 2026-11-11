@@ -285,8 +285,10 @@ parâmetros, Audio Tracks A/B, os botões de modo, o mostrador, os 8 botões Ins
 o LED bicolor (vermelho = carregado, amarelo = selecionado), transporte, cursores, Cancel/Enter,
 slider de Data Entry e o drive de disquetes vertical. O logótipo e o nome do modelo não são
 desenhados. O rack não tem teclado: por baixo há uma faixa com pitch/mod wheel e um teclado
-de 61 teclas para tocar com o rato. Os botões A/B mandam os códigos que no ASR-10 de teclado são
-os Patch Select; os seus LEDs ainda não acendem (não se sabe que comandos do painel os ligam).
+de 61 teclas para tocar com o rato. Os dois botões PATCH SELECT dessa faixa atuam nos pinos PB10/PB11
+do 68302, como os botões do ASR-10 de teclado e o jack Patch Select do rack: clique = premido enquanto
+o rato está em baixo, clique direito = fica preso/solto (para ter os dois ao mesmo tempo, `**`), teclas
+`[` e `]`. Na página Edit/Instrument PATCH= o indicador mostra `OO`, `*O`, `O*` ou `**`.
 
 **Audio Tracks:** os botões A e B (ou F11/F12) selecionam a pista; carregar outra vez na pista
 selecionada liga/desliga a monitorização da entrada (LED vermelho Source Monitor). Para gravar:
@@ -427,7 +429,7 @@ Variáveis de ambiente para depurar o ESP:
 | PB3 | LRCLK. Se faltar, dá o erro 009 "No LRCLK input to 68302". |
 | PB2-0 + PB4 | seleção do multiplexer analógico |
 | PB5/PB6 | botões Audio Track A/B (ativos a 0). Não passam pelo micro do painel: o OS lê-os no tick do TMR2 e gera os códigos de função 8 e 9. |
-| PB10/11 | footswitches |
+| PB10/11 | Patch Select esquerdo/direito (botões do ASR-10 de teclado e jack Patch Select de trás), ativos a 0. Uma descida gera a interrupção PB10/PB11; o handler arma o debounce e o OS lê os pinos no tick do TMR2 (estado em $C42: bit 6 = esquerdo, bit 5 = direito; valor do controlador 0/32/64/127). |
 
 **SCC em modo síncrono (A/D).** O OS lê o "Rx internal data pointer" (+$88) da parameter RAM de
 cada SCC para saber onde começa a gravação de uma Audio Track, e encurta o "Rx internal byte
@@ -590,7 +592,7 @@ Painel → CPU:
 
 | idx | botão | idx | botão | idx | botão |
 |---|---|---|---|---|---|
-| 0/1 | Patch Select L/R (no teclado; o rack não os tem) | 2,8,14,20,4,34,28,22 | Instrument•Track 1-8 | 26 | LOAD |
+| 0/1 | footswitches direito (sustain) / esquerdo (programável), lidos pelo micro do teclado | 2,8,14,20,4,34,28,22 | Instrument•Track 1-8 | 26 | LOAD |
 | 6 | COMMAND | 5 | EDIT | 15 | INSTRUMENT |
 | 21 | SEQ•SONG | 27 | SYSTEM•MIDI | 9 | EFFECTS |
 | 7 | FX SELECT•BYPASS | 32 | SAMPLE | 13,18,19,24,25,30,31,36,37,12 | 1…9, 0 |

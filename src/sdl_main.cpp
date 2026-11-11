@@ -1059,6 +1059,8 @@ int main(int argc, char **argv) {
     // Patch Select buttons (on the keyboard model they sit left of the wheels; panel indices 0/1)
     const SDL_Rect patch_btn[2] = { { 22, KB_Y + KB_H - 30, 60, 26 }, { 92, KB_Y + KB_H - 30, 60, 26 } };
     int held_ctl = -1;
+    // Patch Select (68302 PB10/PB11): click = hold, right click = latch on/off (so that both can be on), [ and ] keys
+    int held_patch = -1; bool patch_latched[2] = { false, false };
     // Input Level pot (drag up/down, wheel, double click = 0 dB)
     float in_level = cfg.input_level; bool knob_drag = false; int knob_y0 = 0; float knob_v0 = 0;
     m.input_gain.store(RackUI::input_gain(in_level));
@@ -1253,8 +1255,11 @@ int main(int argc, char **argv) {
                             arrows_both = true; m.panel.button(10, true); m.panel.button(11, true); break;
                         }
                         if (bi >= 0) { held_button = bi; m.panel.button(bi, true); break; }
-                        if (H_cur == H) for (int ps = 0; ps < 2; ps++) if (inside(patch_btn[ps], x, y)) { held_button = ps; m.panel.button(ps, true); }
-                        if (held_button >= 0) break;
+                        if (H_cur == H) for (int ps = 0; ps < 2; ps++) if (inside(patch_btn[ps], x, y)) {
+                            if (e.button.button == SDL_BUTTON_RIGHT) { patch_latched[ps] = !patch_latched[ps]; m.set_patch_select(ps, patch_latched[ps]); }
+                            else { held_patch = ps; m.set_patch_select(ps, true); }
+                        }
+                        if (held_button >= 0 || held_patch >= 0) break;
                         RackUI::Area a = rack.area_at(x, y);
                         if (a == RackUI::POWER) { power_held = true; power_down_t = SDL_GetTicks(); break; }
                         if (a == RackUI::EJECT) {
@@ -1298,6 +1303,7 @@ int main(int argc, char **argv) {
                         if (c.spring) { c.val = 0.5; m.analog[c.ch] = ctl_raw(c); }
                         held_ctl = -1;
                     }
+                    if (held_patch >= 0) { m.set_patch_select(held_patch, patch_latched[held_patch]); held_patch = -1; }
                     if (held_button == RackUI::AUDIO_A || held_button == RackUI::AUDIO_B) { m.audio_button[held_button - RackUI::AUDIO_A] = false; held_button = -1; }
                     if (arrows_both) { m.panel.button(11, false); m.panel.button(10, false); arrows_both = false; }
                     if (held_button >= 0) { m.panel.button(held_button, false); held_button = -1; }
@@ -1345,6 +1351,12 @@ int main(int argc, char **argv) {
                         }
                         break;
                     }
+                    if (kc == SDLK_LEFTBRACKET || kc == SDLK_RIGHTBRACKET) {   // Patch Select left / right
+                        int ps = kc == SDLK_LEFTBRACKET ? 0 : 1;
+                        m.set_patch_select(ps, down || patch_latched[ps]);
+                        held_kbd_button[sc] = down ? 100 + ps : -1;
+                        break;
+                    }
                     if (kc == SDLK_F11 || kc == SDLK_F12) {          // Audio Track A / B
                         int ab = kc == SDLK_F11 ? 0 : 1;
                         m.audio_button[ab] = down;
@@ -1372,13 +1384,15 @@ int main(int argc, char **argv) {
                     else if (ab.second == 1004) { lk.unlock(); open_drop(O_NEWMAKE); lk.lock(); }   // test: create a drive
                     else if (ab.second == 1002) want_kb_toggle = true;                       // test: keyboard strip
                     else if (ab.second == 1001) want_apply = true;                          // test: apply options
+                    else if (ab.second == 3000 || ab.second == 3001) m.set_patch_select(ab.second - 3000, true);   // test: Patch Select
                     else if (ab.second >= 2000) m.panel.key(ab.second - 2000, 100, true);   // test: key on
                     else if (ab.second == RackUI::AUDIO_A || ab.second == RackUI::AUDIO_B) m.audio_button[ab.second - RackUI::AUDIO_A] = true;
                     else m.panel.button(ab.second, true);
                     ab.first = -(emu_t + 0.1);
                 }
                 else if (ab.first < -0.5 && emu_t >= -ab.first + (ab.second >= 2000 ? 0.9 : 0)) {
-                    if (ab.second >= 2000) m.panel.key(ab.second - 2000, 64, false);
+                    if (ab.second == 3000 || ab.second == 3001) m.set_patch_select(ab.second - 3000, false);
+                    else if (ab.second >= 2000) m.panel.key(ab.second - 2000, 64, false);
                     else if (ab.second == RackUI::AUDIO_A || ab.second == RackUI::AUDIO_B) m.audio_button[ab.second - RackUI::AUDIO_A] = false;
                     else if (ab.second != 1000 && ab.second != 1002) m.panel.button(ab.second, false);
                     ab.first = -0.25;
@@ -1449,8 +1463,8 @@ int main(int argc, char **argv) {
 
             for (int ps = 0; ps < 2; ps++) {
                 const SDL_Rect &r = patch_btn[ps];
-                bool held = held_button == ps;
-                for (int s2 = 0; s2 < 512; s2++) if (held_kbd_button[s2] == ps) held = true;
+                bool held = held_patch == ps || patch_latched[ps];
+                for (int s2 = 0; s2 < 512; s2++) if (held_kbd_button[s2] == 100 + ps) held = true;
                 fill(r.x - 2, r.y - 2, r.w + 4, r.h + 5, 0x050505);
                 fill(r.x, r.y + (held ? 1 : 0), r.w, r.h, held ? 0x1c1d1f : 0x2c2d31);
                 fill(r.x, r.y + (held ? 1 : 0), r.w, 1, held ? 0x2a2b2e : 0x4a4c51);

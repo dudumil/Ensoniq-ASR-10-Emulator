@@ -372,6 +372,8 @@ void Asr10::input_frame(double frame_rate) {
         }
     }
     in_last_l = l; in_last_r = r;
+    { const float g = input_gain.load(std::memory_order_relaxed); l *= g; r *= g; }   // Input Level pot
+    l = std::clamp(l, -1.0f, 1.0f); r = std::clamp(r, -1.0f, 1.0f);                  // the A/D clips
     in_peak = std::max(in_peak, std::max(std::fabs(l), std::fabs(r)));
     in_peak_ch[0] = std::max(in_peak_ch[0], std::fabs(l)); in_peak_ch[1] = std::max(in_peak_ch[1], std::fabs(r));
     if (DBG(ASR_DBG_IN)) { static uint64_t n = 0; if ((++n % 29760) == 0) fprintf(stderr, "IN frames=%llu t=%.3f fr=%.1f q=%zu voices=%d\n", (unsigned long long)n, total_cycles / cpu_clock, frame_rate, input.size(), otto.active_voices()); }

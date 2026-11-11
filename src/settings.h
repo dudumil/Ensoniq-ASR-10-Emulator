@@ -16,6 +16,7 @@ struct Settings {
     std::string midi_in, midi_out;
     bool midi_in_set = false;          // false: use the first input port, like earlier versions
     // window
+    float input_level = 2.0f / 3;      // Input Level pot position 0..1 (2/3 = 0 dB, 1 = +18 dB)
     bool show_keyboard = true;         // strip with the wheels, Patch Select and the keyboard
     // display: false = the original VFD, true = the purple graphic LCD
     bool lcd = false;

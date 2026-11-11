@@ -2,6 +2,7 @@
 #include "efe_disk.h"
 #include "search_dirs.h"
 #include "settings.h"
+#include "input_level.h"
 #include "m68k.h"
 #include <cstring>
 #include <cstdlib>
@@ -280,11 +281,19 @@ void Asr10Engine::apply_settings(Asr10 &a, bool first) {
     cfg_stamp = cfg_time(cfg);
     Settings st; st.load(cfg);
     lcd_ = st.lcd;
+    if (first && !input_level_set_) input_level_ = st.input_level;   // the app's Input Level pot
+    a.input_gain.store(input_level_gain(input_level_.load()));
     if (first || st.scsi_dir != scsi_folder) {
         scsi_folder = st.scsi_dir;
         std::string d = attach_scsi_folder(a);
         if (!first) set_status(d.empty() ? "No SCSI folder" : "SCSI folder (from the app): " + d + "  (hold Power ~1 s so that the OS sees the drives)");
     }
+}
+
+void Asr10Engine::set_input_level(float v) {
+    v = std::clamp(v, 0.0f, 1.0f);
+    input_level_ = v; input_level_set_ = true;
+    push(cmd_mx, cmds, [v](Asr10 &a) { a.input_gain.store(input_level_gain(v)); });
 }
 
 void Asr10Engine::check_settings() {

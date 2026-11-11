@@ -171,6 +171,38 @@ void RackUI::button(const Btn &b, bool pressed) {
     fill({ f.x, f.y, K, f.h }, 0x26272a);
     fill({ f.x + f.w - K, f.y, K, f.h }, 0x111214);
 }
+void RackUI::bar(float x1, float y1, float x2, float y2, float w, uint32_t c) {
+    float dx = x2 - x1, dy = y2 - y1, l = std::sqrt(dx * dx + dy * dy);
+    if (l <= 0) return;
+    float nx = -dy / l * w / 2, ny = dx / l * w / 2;
+    SDL_Color col{ (Uint8)(c >> 16), (Uint8)(c >> 8), (Uint8)c, 255 };
+    SDL_Vertex v[4] = {
+        { { X(x1 + nx), Y(y1 + ny) }, col, { 0, 0 } }, { { X(x2 + nx), Y(y2 + ny) }, col, { 0, 0 } },
+        { { X(x2 - nx), Y(y2 - ny) }, col, { 0, 0 } }, { { X(x1 - nx), Y(y1 - ny) }, col, { 0, 0 } },
+    };
+    const int idx[6] = { 0, 1, 2, 0, 2, 3 };
+    SDL_SetRenderDrawBlendMode(R, SDL_BLENDMODE_BLEND);
+    SDL_RenderGeometry(R, nullptr, v, 4, idx, 6);
+}
+// a rotary pot with a scale of 11 marks over 270 degrees, the pointer at `val` (0..1)
+void RackUI::rotary(float cx, float cy, float rad, float val) {
+    const float PI = 3.14159265f;
+    for (int i = 0; i <= 10; i++) {                         // scale
+        float a = (-135.0f + 27.0f * i) * PI / 180;
+        float s = std::sin(a), c = -std::cos(a), r0 = rad + 3.5f, r1 = rad + (i % 5 == 0 ? 9.5f : 7.0f);
+        bar(cx + s * r0, cy + c * r0, cx + s * r1, cy + c * r1, i % 5 == 0 ? 2.2f : 1.6f, 0x9a9ca2);
+    }
+    circle(X(cx), Y(cy + 2), (rad + 1.5f) * K, 0x050505);    // shadow
+    circle(X(cx), Y(cy), (rad + 0.5f) * K, 0x0c0c0d);        // skirt
+    const int n = 8;                                         // cap: lighter towards the top
+    for (int i = 0; i < n; i++) {
+        float t = (float)i / n;
+        circle(X(cx), Y(cy - rad * 0.12f * t), rad * (1 - 0.18f * t) * K, mix(0x18191b, 0x3a3c40, t));
+    }
+    float a = (-135.0f + 270.0f * std::clamp(val, 0.0f, 1.0f)) * PI / 180;
+    float s = std::sin(a), c = -std::cos(a);
+    bar(cx + s * rad * 0.25f, cy + c * rad * 0.25f, cx + s * rad * 0.92f, cy + c * rad * 0.92f, 3.0f, 0xe8e8e8);
+}
 RackUI::Slider RackUI::slider(float cx, float top, float bot) const {
     return { X(cx - 28), Y(top), 56 * K, (bot - top) * K };
 }
@@ -220,6 +252,7 @@ void RackUI::draw(const RackState &s, VfdRenderer &vfd) {
     led(348, 230, 14, 8, 0xff2a1a, s.in_right >= pk);
     led(288, 258, 14, 8, 0x40ff40, s.in_left >= sig);
     led(348, 258, 14, 8, 0x40ff40, s.in_right >= sig);
+    rotary(IN_X, IN_Y, 15, s.input_level);          // Input Level pot (the rack has it on the back)
     {   // rocker switch
         SDL_FRect o = rect(240, 410, 57, 80);
         fill({ o.x - K * 2, o.y - K * 2, o.w + K * 4, o.h + K * 4 }, 0x2c2d30);

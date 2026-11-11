@@ -64,7 +64,7 @@ public:
         rs.panel = &snap.panel; rs.ticks = now_ms(); rs.held = held;
         rs.volume = (float)volume_value(); rs.data = (float)data;
         rs.disk = snap.disk; rs.drive_busy = snap.drive_busy; rs.scsi_activity = snap.scsi_activity; rs.scsi_writes = snap.scsi_writes;
-        rs.in_left = snap.in_left; rs.in_right = snap.in_right;
+        rs.in_left = snap.in_left; rs.in_right = snap.in_right; rs.input_level = plug->engine().input_level();
         rs.power_held = power_held;
         for (int l = 0; l < 4; l++) rs.audio_led[l] = snap.audio_led[l];
         off.set_lcd(plug->engine().lcd());
@@ -90,7 +90,11 @@ public:
             }
             return;
         }
-        if (bi == RackUI::AUDIO_A || bi == RackUI::AUDIO_B) { held_button = bi; eng.button(bi, true); }
+        if (RackUI::knob_hit(ui.input_knob(), (int)p.x, (int)p.y)) {   // Input Level pot: drag, double click = 0 dB
+            if (e.clickCount >= 2) eng.set_input_level(RackUI::INPUT_LEVEL_0DB);
+            else { drag = 3; knob_y0 = p.y; knob_v0 = eng.input_level(); }
+        }
+        else if (bi == RackUI::AUDIO_A || bi == RackUI::AUDIO_B) { held_button = bi; eng.button(bi, true); }
         else if (bi == 3) { rec_latched = !rec_latched; eng.button(3, rec_latched); }   // RECORD latches
         else if (bi >= 0) { held_button = bi; eng.button(bi, true); }
         else {
@@ -122,8 +126,14 @@ public:
         drag = 0; power_held = false;
         e.consumed = true;
     }
-    void onMouseWheelEvent(MouseWheelEvent &e) override {      // wheel = up / down arrows
+    void onMouseWheelEvent(MouseWheelEvent &e) override {      // wheel = up / down arrows (over the Input Level pot: the pot)
         if (e.deltaY == 0) return;
+        CPoint wp = to_px(e.mousePosition);
+        if (RackUI::knob_hit(off.ui().input_knob(), (int)wp.x, (int)wp.y)) {
+            Asr10Engine &eng = plug->engine();
+            eng.set_input_level(eng.input_level() + (e.deltaY > 0 ? 0.02f : -0.02f));
+            e.consumed = true; return;
+        }
         int idx = e.deltaY > 0 ? 10 : 11;
         plug->engine().button(idx, true); plug->engine().button(idx, false);
         e.consumed = true;
@@ -144,6 +154,7 @@ private:
         return p.x >= s.x - 4 && p.x < s.x + s.w + 4 && p.y >= s.y - m && p.y < s.y + s.h + m;
     }
     void drag_to(CPoint p) {
+        if (drag == 3) { plug->engine().set_input_level((float)(knob_v0 + (knob_y0 - p.y) / 200.0)); return; }
         RackUI::Slider s = drag == 1 ? off.ui().volume_slider() : off.ui().data_slider();
         double v = 1.0 - (p.y - s.y) / s.h;
         v = v < 0 ? 0 : v > 1 ? 1 : v;
@@ -178,7 +189,8 @@ private:
     RackOffscreen off;
     SharedPointer<CBitmap> bmp;
     SharedPointer<RackDrop> drop;
-    int held_button = -1, drag = 0;
+    int held_button = -1, drag = 0;   // drag: 1 volume, 2 data entry, 3 Input Level pot
+    double knob_y0 = 0, knob_v0 = 0;
     bool rec_latched = false, power_held = false, arrows_both = false;
     uint32_t power_t = 0;
     double data = 0.5;

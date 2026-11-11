@@ -59,6 +59,9 @@ public:
     // to pick up changes made there
     void check_settings();
     bool lcd() const { return lcd_.load(); }       // display chosen in the app: purple LCD instead of the VFD
+    // Input Level pot (0..1, 2/3 = 0 dB): starts from the app's setting, then kept in the project
+    float input_level() const { return input_level_.load(); }
+    void set_input_level(float v);
     void power_reset();
 
     // state saved with the host project
@@ -94,6 +97,8 @@ private:
     bool boot_scsi_ = false;
     std::string os_disk;                           // the OS disk image found at start (even when booting from SCSI)
     std::atomic<bool> lcd_{false};
+    std::atomic<float> input_level_{2.0f / 3};
+    bool input_level_set_ = false;               // set by the project (do not take the app's value)
     std::string scsi_folder;                       // chosen folder, "" = default
     std::string app_dir;                           // the stand-alone program's folder (from the .cfg)
     std::filesystem::file_time_type cfg_stamp{};

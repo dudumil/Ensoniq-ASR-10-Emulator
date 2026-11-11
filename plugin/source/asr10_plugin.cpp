@@ -239,6 +239,7 @@ tresult PLUGIN_API Plugin::getState(IBStream *state) {
     auto sc = eng.scsi_paths();
     s.writeInt32((int32)sc.size());
     for (auto &p : sc) s.writeStr8(p.c_str());
+    s.writeFloat(eng.input_level());                // Input Level pot (added later: optional when read)
     return kResultOk;
 }
 
@@ -255,6 +256,8 @@ tresult PLUGIN_API Plugin::setState(IBStream *state) {
         char8 *p = s.readStr8(); scsi.push_back(p ? std::string(p) : std::string()); delete[] p;
     }
     // (version 2 also stored a SCSI folder: it now comes from the app)
+    float in_level = 0;
+    if (s.readFloat(in_level)) eng.set_input_level(in_level);
     volume = vol; (void)clk;
     setParamNormalized(kVolume, volume);
     eng.analog(Asr10::AN_VOLUME, (uint16_t)(volume * 1000));

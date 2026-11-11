@@ -1059,6 +1059,9 @@ int main(int argc, char **argv) {
     // Patch Select buttons (on the keyboard model they sit left of the wheels; panel indices 0/1)
     const SDL_Rect patch_btn[2] = { { 22, KB_Y + KB_H - 30, 60, 26 }, { 92, KB_Y + KB_H - 30, 60, 26 } };
     int held_ctl = -1;
+    // Input Level pot (drag up/down, wheel, double click = 0 dB)
+    float in_level = cfg.input_level; bool knob_drag = false; int knob_y0 = 0; float knob_v0 = 0;
+    m.input_gain.store(RackUI::input_gain(in_level));
     { std::lock_guard<std::mutex> g(mmx); for (auto &c : controls) m.analog[c.ch] = ctl_raw(c); }
     int held_button = -1, held_key = -1;
     bool arrows_both = false;                       // right click on Up/Down: both arrows held
@@ -1068,6 +1071,14 @@ int main(int argc, char **argv) {
                                                    : "No OS disk found in the roms folder: drop a disk image (.img) or an instrument (.efa/.efe) on the window")
                                       : "Disk: " + disk;
     uint32_t status_t = SDL_GetTicks();
+    auto set_in_level = [&](float v, bool save) {
+        in_level = std::clamp(v, 0.0f, 1.0f);
+        m.input_gain.store(RackUI::input_gain(in_level));
+        char b[64]; float db = RackUI::input_db(in_level);
+        if (db <= -99) snprintf(b, sizeof b, "Input Level: off"); else snprintf(b, sizeof b, "Input Level: %+.1f dB", db);
+        status = b; status_t = SDL_GetTicks();
+        if (save) { cfg.input_level = in_level; cfg.save(); }
+    };
 
     auto press_key = [&](int k, bool down, int vel) {
         if (k < 0 || k >= KEYS) return;
@@ -1225,6 +1236,11 @@ int main(int argc, char **argv) {
                     break;
                 case SDL_MOUSEBUTTONDOWN: {
                     int x = e.button.x, y = e.button.y;
+                    if (RackUI::knob_hit(rack.input_knob(), x, y)) {
+                        if (e.button.clicks >= 2) set_in_level(RackUI::INPUT_LEVEL_0DB, true);
+                        else { knob_drag = true; knob_y0 = y; knob_v0 = in_level; }
+                        break;
+                    }
                     {
                         int bi = rack.button_at(x, y);
                         if (bi == RackUI::AUDIO_A || bi == RackUI::AUDIO_B) { held_button = bi; m.audio_button[bi - RackUI::AUDIO_A] = true; break; }
@@ -1270,6 +1286,7 @@ int main(int argc, char **argv) {
                     break;
                 }
                 case SDL_MOUSEBUTTONUP:
+                    if (knob_drag) { knob_drag = false; cfg.input_level = in_level; cfg.save(); }
                     if (power_held) {
                         power_held = false;
                         if (SDL_GetTicks() - power_down_t >= 700) { save_disk(); m.reset(); status = "Reset (Power)"; }
@@ -1287,13 +1304,18 @@ int main(int argc, char **argv) {
                     if (held_key >= 0) { press_key(held_key, false, 64); held_key = -1; }
                     break;
                 case SDL_MOUSEMOTION:
+                    if (knob_drag) set_in_level(knob_v0 + (knob_y0 - e.motion.y) / 200.0f, false);
                     if (held_ctl >= 0) { Ctl &c = controls[held_ctl]; ctl_from_mouse(c, e.motion.x, e.motion.y); m.analog[c.ch] = ctl_raw(c); }
                     if (held_key >= 0 && (e.motion.state & SDL_BUTTON_LMASK)) {
                         int k = key_at(e.motion.x, e.motion.y);
                         if (k >= 0 && k != held_key) { press_key(held_key, false, 64); held_key = k; press_key(k, true, velocity); }
                     }
                     break;
-                case SDL_MOUSEWHEEL: {   // wheel = data entry (up/down arrows)
+                case SDL_MOUSEWHEEL: {   // wheel = data entry (up/down arrows); over the Input Level pot it turns the pot
+                    if (RackUI::knob_hit(rack.input_knob(), e.wheel.mouseX, e.wheel.mouseY)) {
+                        set_in_level(in_level + 0.02f * (e.wheel.y > 0 ? 1 : e.wheel.y < 0 ? -1 : 0), true);
+                        break;
+                    }
                     int idx = e.wheel.y > 0 ? 10 : 11;
                     m.panel.button(idx, true); m.panel.button(idx, false);
                     break;
@@ -1400,7 +1422,7 @@ int main(int argc, char **argv) {
                 if (c.ch == Asr10::AN_DATA) rs.data = (float)c.val;
             }
             rs.disk = has_disk; rs.drive_busy = drive_busy; rs.scsi_activity = scsi_act; rs.scsi_writes = scsi_wr;
-            rs.in_left = in_lvl[0]; rs.in_right = in_lvl[1];
+            rs.in_left = in_lvl[0]; rs.in_right = in_lvl[1]; rs.input_level = in_level;
             rs.power_held = power_held;
             for (int l = 0; l < 4; l++) rs.audio_led[l] = audio_leds[l];
             rack.draw(rs, vfd);

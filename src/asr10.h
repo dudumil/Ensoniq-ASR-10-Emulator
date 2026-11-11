@@ -37,6 +37,7 @@ public:
     // audio input (A/D): interleaved stereo float at `rate`; thread safe
     void feed_input(const float *lr, size_t frames, double rate);
     float in_peak = 0;                  // input peak meter (reset by the consumer)
+    std::atomic<float> input_gain{1.0f}; // Input Level pot: gain before the A/D (clips at full scale)
     float in_peak_ch[2] = { 0, 0 };
     // Audio Track A/B buttons: wired straight to PB5/PB6 of the 68302 (active low), not through the
     // panel micro. Their LEDs are 68302 port A outputs (active low): PA5/PA6 = A/B "Selected"

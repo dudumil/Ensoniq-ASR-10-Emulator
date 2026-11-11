@@ -7,6 +7,7 @@
 #include <SDL.h>
 #include <cstdint>
 #include <vector>
+#include "input_level.h"
 
 class Panel;
 class VfdRenderer;
@@ -20,6 +21,7 @@ struct RackState {
     uint32_t scsi_writes = 0;          // SCSI bytes written: the LED blinks faster while writing
     uint32_t scsi_activity = 0;        // SCSI bus activity counter: the LED over the floppy drive blinks when it changes
     float in_left = 0, in_right = 0;   // input peak since the last frame (0..1)
+    float input_level = 2.0f / 3;      // Input Level knob position 0..1 (see RackUI::input_gain)
     bool power_held = false;
     bool audio_led[4] = {};            // Audio Track A/B: Selected (yellow), Source Monitor (red)
 };
@@ -46,6 +48,14 @@ public:
     struct Slider { float x, y, w, h; };
     Slider volume_slider() const { return slider(VOL_X, VOL_TOP, VOL_BOT); }
     Slider data_slider() const { return slider(DATA_X, DATA_TOP, DATA_BOT); }
+    // Input Level knob (on the real rack it is on the back panel): drag up/down, mouse wheel,
+    // double click = back to 0 dB. Position 0..1: 0 = off, 2/3 = 0 dB, 1 = +18 dB.
+    struct Knob { float cx, cy, r; };
+    Knob input_knob() const { return { X(IN_X), Y(IN_Y), 26 * K }; }
+    static bool knob_hit(const Knob &k, int x, int y) { float dx = x - k.cx, dy = y - k.cy; return dx * dx + dy * dy <= k.r * k.r; }
+    static constexpr float INPUT_LEVEL_0DB = ::INPUT_LEVEL_0DB;
+    static float input_gain(float pos) { return input_level_gain(pos); }   // knob position -> linear gain
+    static float input_db(float pos) { return input_level_db(pos); }       // knob position -> dB (-100 = off)
 
 private:
     float K;
@@ -60,6 +70,7 @@ private:
     std::vector<Btn> buttons;
     static constexpr float VOL_X = 346, VOL_TOP = 368, VOL_BOT = 556;   // same travel as Data Entry
     static constexpr float DATA_X = 1609, DATA_TOP = 368, DATA_BOT = 556;
+    static constexpr float IN_X = 224, IN_Y = 244;      // Input Level knob, left of the input LEDs
 
     SDL_FRect rect(float x, float y, float w, float h) const { return { X(x), Y(y), w * K, h * K }; }
     Slider slider(float cx, float top, float bot) const;
@@ -70,4 +81,6 @@ private:
     void led(float cx, float cy, float w, float h, uint32_t on_colour, bool on);
     void button(const Btn &b, bool pressed);
     void slider_knob(float cx, float top, float bot, float val);
+    void bar(float x1, float y1, float x2, float y2, float w, uint32_t c);   // thick line (panel units)
+    void rotary(float cx, float cy, float rad, float val);
 };

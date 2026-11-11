@@ -26,7 +26,7 @@ def lab(t, x, y, size=12, col=GREY, anchor='c'): L.append((t, x, y, size, col, a
 lab('Peak', 318, 230, 10); lab('Signal', 318, 258, 10)
 lab('SCSI Activity', 1746.5, 199, 10)   # under the SCSI activity LED, over the floppy drive
 lab('A/Left', 288, 277, 10); lab('B/Right', 350, 277, 10)
-lab('Input Level', 318, 304, 15, BLUE)
+lab('Input Level', 282, 304, 15, BLUE)   # under the Input Level pot and the input LEDs
 lab('On', 268, 394, 13); lab('Power', 268, 506, 13); lab('Phones', 268, 592, 13)
 lab('Volume', 348, 646, 15, BLUE)
 # ---- parameter buttons (names above, numbers below in blue)

@@ -34,6 +34,7 @@ bool Settings::load(const std::string &file) {
         else if (k == "midi_in") { midi_in = v; midi_in_set = true; }
         else if (k == "midi_out") midi_out = v;
         else if (k == "show_keyboard") show_keyboard = n != 0;
+        else if (k == "input_level") { float f = (float)atof(v.c_str()); input_level = f < 0 ? 0 : f > 1 ? 1 : f; }
         else if (k == "display") lcd = (v == "lcd");
         else if (k == "scsi_dir") scsi_dir = v;
         else if (k == "app_dir") app_dir = v;
@@ -58,6 +59,7 @@ bool Settings::save() const {
     for (int i = 0; i < 3; i++) fprintf(f, "aux%d_out=%d\n", i + 1, aux_pair[i] < 0 ? 0 : aux_pair[i] * 2 + 1);
     fprintf(f, "midi_in=%s\nmidi_out=%s\n", midi_in.c_str(), midi_out.c_str());
     fprintf(f, "# 1 = show the keyboard strip below the panel (F9 / View > Show Keyboard)\nshow_keyboard=%d\n", show_keyboard ? 1 : 0);
+    fprintf(f, "# Input Level pot: 0..1 (0 = off, 0.667 = 0 dB, 1 = +18 dB)\ninput_level=%.3f\n", input_level);
     fprintf(f, "# display: vfd (the original) or lcd (purple graphic LCD)\ndisplay=%s\n", lcd ? "lcd" : "vfd");
     fprintf(f, "# folder of the SCSI drive images (HD0.img, CD5.iso ...); empty = \"scsi\" next to the program\nscsi_dir=%s\n", scsi_dir.c_str());
     fprintf(f, "# start-up: floppy = load the OS disk image into the floppy drive; scsi = no floppy, boot from a SCSI drive\nboot=%s\n", boot_scsi ? "scsi" : "floppy");

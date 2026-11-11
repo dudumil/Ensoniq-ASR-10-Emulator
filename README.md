@@ -53,6 +53,7 @@ The ROM and the operating system belong to Ensoniq/E-mu and are **not included**
   machine with an empty floppy drive, booting from a SCSI drive that has the OS on it (command line:
   `--boot scsi` / `--boot floppy`, this run only). The OS disk image is only ever taken from the `roms`
   folder next to the program: nothing is fetched from `%APPDATA%`, so deleting it there removes it.
+- **Input Level pot:** left of the input LEDs (on the real rack it is on the back panel). Drag it up/down or use the mouse wheel over it; double click = 0 dB. Range: off to +18 dB (0 dB at about 2 o'clock). The gain is applied before the A/D, so the input LEDs and the OS level meter follow it, and too much gain clips as on the hardware.
 - **SCSI activity LED:** the red LED above the floppy drive blinks while the SCSI bus is in use: slowly while reading, fast while writing.
 - **ROMs not found:** the program lists the folders it searched and offers "Choose folder..."; the chosen folder is remembered (the plug-in uses it too).
 - **Up + Down together** jumps to the middle of the value's range (0 for -99..+99, 50 for 0..99), as

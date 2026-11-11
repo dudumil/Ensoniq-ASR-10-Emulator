@@ -21,7 +21,7 @@ struct EngineSnapshot {
     Panel panel;
     bool audio_led[4] = {};
     bool disk = false, drive_busy = false;
-    uint32_t scsi_activity = 0;
+    uint32_t scsi_activity = 0, scsi_writes = 0;
     float in_left = 0, in_right = 0;
     std::string floppy, scsi;            // floppy image path, SCSI summary
     std::string status;                  // last message for the status line

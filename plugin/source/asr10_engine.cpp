@@ -342,6 +342,7 @@ EngineSnapshot Asr10Engine::snapshot() {
     s.panel = m->panel;
     for (int l = 0; l < 4; l++) s.audio_led[l] = m->audio_led(l);
     s.disk = m->fdc.has_disk(); s.drive_busy = m->fdc.motor != 0; s.scsi_activity = m->scsi.activity.load(std::memory_order_relaxed);
+    s.scsi_writes = m->scsi.writes.load(std::memory_order_relaxed);
     s.in_left = m->in_peak_ch[0]; s.in_right = m->in_peak_ch[1];
     m->in_peak_ch[0] = m->in_peak_ch[1] = 0;
     s.floppy = s.disk ? m->fdc.path : std::string();

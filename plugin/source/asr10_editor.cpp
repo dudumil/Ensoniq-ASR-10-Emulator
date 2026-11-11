@@ -63,7 +63,7 @@ public:
         RackState rs;
         rs.panel = &snap.panel; rs.ticks = now_ms(); rs.held = held;
         rs.volume = (float)volume_value(); rs.data = (float)data;
-        rs.disk = snap.disk; rs.drive_busy = snap.drive_busy; rs.scsi_activity = snap.scsi_activity;
+        rs.disk = snap.disk; rs.drive_busy = snap.drive_busy; rs.scsi_activity = snap.scsi_activity; rs.scsi_writes = snap.scsi_writes;
         rs.in_left = snap.in_left; rs.in_right = snap.in_right;
         rs.power_held = power_held;
         for (int l = 0; l < 4; l++) rs.audio_led[l] = snap.audio_led[l];

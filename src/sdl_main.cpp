@@ -1128,7 +1128,7 @@ int main(int argc, char **argv) {
     while (!quit) {
         Panel pv;                     // snapshot of the machine state for drawing
         bool fdc_dirty, has_disk, scsi_fitted, drive_busy, audio_leds[4];
-        uint32_t scsi_act = 0;
+        uint32_t scsi_act = 0, scsi_wr = 0;
         float in_lvl[2];
         std::string scsi_sum, disk_path;
         bool want_options = false, want_apply = false, want_kb_toggle = false, want_open = false;
@@ -1367,6 +1367,7 @@ int main(int argc, char **argv) {
             pv = m.panel;
             fdc_dirty = m.fdc.dirty; has_disk = m.fdc.has_disk(); scsi_fitted = m.scsi_fitted; disk_path = m.fdc.path;
             drive_busy = m.fdc.motor != 0; scsi_act = m.scsi.activity.load(std::memory_order_relaxed);
+            scsi_wr = m.scsi.writes.load(std::memory_order_relaxed);
             for (int l = 0; l < 4; l++) audio_leds[l] = m.audio_led(l);
             for (int c2 = 0; c2 < 2; c2++) { in_lvl[c2] = m.in_peak_ch[c2]; m.in_peak_ch[c2] = 0; }
             scsi_sum = scsi_fitted ? m.scsi.summary() : std::string("off");
@@ -1398,7 +1399,7 @@ int main(int argc, char **argv) {
                 if (c.ch == Asr10::AN_VOLUME) rs.volume = (float)c.val;
                 if (c.ch == Asr10::AN_DATA) rs.data = (float)c.val;
             }
-            rs.disk = has_disk; rs.drive_busy = drive_busy; rs.scsi_activity = scsi_act;
+            rs.disk = has_disk; rs.drive_busy = drive_busy; rs.scsi_activity = scsi_act; rs.scsi_writes = scsi_wr;
             rs.in_left = in_lvl[0]; rs.in_right = in_lvl[1];
             rs.power_held = power_held;
             for (int l = 0; l < 4; l++) rs.audio_led[l] = audio_leds[l];

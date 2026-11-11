@@ -319,10 +319,21 @@ void RackUI::draw(const RackState &s, VfdRenderer &vfd) {
         led(1773, 520, 6, 20, 0xff3a1a, s.drive_busy);
     }
 
-    // ---- SCSI activity LED over the floppy drive: lit for a moment after each bus activity
-    if (!scsi_seen_init) { scsi_seen = s.scsi_activity; scsi_seen_init = true; }
-    if (s.scsi_activity != scsi_seen) { scsi_seen = s.scsi_activity; scsi_seen_t = s.ticks; scsi_hit = true; }
-    const bool scsi_lit = scsi_hit && (uint32_t)(s.ticks - scsi_seen_t) < 70;
+    // ---- SCSI activity LED over the floppy drive: blinks while the bus is in use, slowly while
+    //      reading (4 Hz) and fast while writing (10 Hz); a burst keeps it blinking for 300 ms
+    const uint32_t HOLD = 300, READ_PERIOD = 250, WRITE_PERIOD = 100;   // ms
+    {
+        if (!scsi_seen_init) { scsi_seen = s.scsi_activity; scsi_wseen = s.scsi_writes; scsi_seen_init = true; }
+        if (s.scsi_activity != scsi_seen) {
+            if (!scsi_hit || (uint32_t)(s.ticks - scsi_seen_t) >= HOLD) scsi_start_t = s.ticks;   // a new burst: on at once
+            scsi_seen = s.scsi_activity; scsi_seen_t = s.ticks; scsi_hit = true;
+        }
+        if (s.scsi_writes != scsi_wseen) { scsi_wseen = s.scsi_writes; scsi_write_t = s.ticks; }
+    }
+    const bool scsi_busy = scsi_hit && (uint32_t)(s.ticks - scsi_seen_t) < HOLD;
+    const bool scsi_writing = scsi_busy && (uint32_t)(s.ticks - scsi_write_t) < HOLD;
+    const uint32_t scsi_period = scsi_writing ? WRITE_PERIOD : READ_PERIOD;
+    const bool scsi_lit = scsi_busy && (uint32_t)(s.ticks - scsi_start_t) % scsi_period < scsi_period / 2;
     led(1746.5f, 179, 14, 8, 0xff2a1a, scsi_lit);
 
     // ---- legends

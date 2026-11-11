@@ -147,10 +147,7 @@ namespace {
 struct Slot { int col, row; bool right; int y = -1; };      // y: pixel row of the legend's top, -1 = by row
 Slot slot_of(const char *t) {
     auto is = [&](std::initializer_list<const char *> l) { for (const char *n : l) if (!strcmp(t, n)) return true; return false; };
-    // left: one column; the first line (INST, SEQ, SYSTEM, ENV ...) with the second line directly under it
-    // (BANK, SONG, MACRO; AMP / FILTER / PITCH under ENV for the envelope pages 3 / 2 / 1)
-    if (is({ "INST", "MIDI", "SYSTEM", "LAYER", "SEQ", "ENV" })) return { 64, 0, false };
-    if (is({ "SONG", "MACRO", "BANK", "AMP", "FILTER", "PITCH", "LFO", "WAVE" })) return { 64, 1, false };
+    // (the left column is assigned dynamically: see left_rank)
     if (is({ "ODUB", "REC", "PLAY", "STOP" })) return { LEG_RIGHT, 0, true };
     if (is({ "TRACK", "BEAT", "CLOCK" })) return { LEG_RIGHT, 1, true };
     // the song position "003. 07.01" fills the last 8 text cells (14-21), as in "002. 02.01.": BAR sits two cells
@@ -159,6 +156,17 @@ Slot slot_of(const char *t) {
     if (is({ "BAR" })) return { cell(12), 2, false, 14 };
     if (is({ "STEP" })) return { cell(16), 2, false, 14 };
     return { cell(21), 2, false, 14 };                       // REP
+}
+
+// The left column has two lines. The legends of the first line (INST, SEQ, SYSTEM, MIDI, LAYER, LFO, WAVE, PITCH ...) sit
+// on top; if two of them are lit at once (ENV with PITCH / FILTER / AMP for the envelope pages 1 / 2 / 3) the first in this
+// order stays on top and the other goes directly under it. SONG, MACRO and BANK are always on the second line.
+const char *const LEFT_TOP[] = { "ENV", "INST", "SEQ", "SYSTEM", "MIDI", "LAYER", "LFO", "WAVE", "PITCH", "FILTER", "AMP" };
+const char *const LEFT_BOTTOM[] = { "SONG", "MACRO", "BANK" };
+int left_rank(const char *t, bool &bottom_only) {
+    for (int i = 0; i < (int)(sizeof(LEFT_TOP) / sizeof(*LEFT_TOP)); i++) if (!strcmp(t, LEFT_TOP[i])) { bottom_only = false; return i; }
+    for (int i = 0; i < (int)(sizeof(LEFT_BOTTOM) / sizeof(*LEFT_BOTTOM)); i++) if (!strcmp(t, LEFT_BOTTOM[i])) { bottom_only = true; return 100 + i; }
+    return -1;
 }
 }
 
@@ -199,10 +207,38 @@ void LcdRenderer::draw(const Panel &p, float x, float y, uint32_t ticks, float s
         if (!st || i == mode || (l.group == 0 && (i % 5) == 0)) continue;
         if (!strcmp(l.text, "REP")) rep_lit = true;
         if (!strcmp(l.text, "SONG") && (!load || l.group != 0)) continue;   // SONG: only as the file type while loading a song (not for the song selected in the sequencer)
+        bool bo = false;
+        if (left_rank(l.text, bo) >= 0) {                  // the left column: collected, placed below
+            bool seen = false;
+            for (Placed &q : placed) if (!strcmp(VFD_LEGENDS[q.idx].text, l.text)) { seen = true; if (st == 1) q.st = 1; }
+            if (!seen) placed.push_back({ i, Slot{ 64, -1, false }, st });
+            continue;
+        }
         Slot sl = slot_of(l.text);
         bool taken = false;
         for (const Placed &q : placed) if (q.sl.col == sl.col && q.sl.row == sl.row && q.sl.right == sl.right) taken = true;
         if (!taken) placed.push_back({ i, sl, st });
+    }
+    {   // place the left column: top line by rank, a second one lit goes under it
+        std::vector<Placed *> tops, bottoms;
+        for (Placed &q : placed) if (q.sl.row == -1) {
+            bool bo; int r = left_rank(VFD_LEGENDS[q.idx].text, bo);
+            (bo ? bottoms : tops).push_back(&q); q.sl.y = r;           // y = rank for the sort (reset below)
+        }
+        auto byrank = [](Placed *a, Placed *b) { return a->sl.y < b->sl.y; };
+        std::sort(tops.begin(), tops.end(), byrank); std::sort(bottoms.begin(), bottoms.end(), byrank);
+        bool top_used = false, bottom_used = false;
+        for (Placed *q : tops) {
+            if (!top_used) { q->sl.row = 0; top_used = true; }
+            else if (!bottom_used) { q->sl.row = 1; bottom_used = true; }
+            else q->sl.row = -2;                                       // no room: not drawn
+        }
+        for (Placed *q : bottoms) {
+            if (!bottom_used) { q->sl.row = 1; bottom_used = true; }
+            else q->sl.row = -2;
+        }
+        for (Placed &q : placed) if (q.sl.row == -1 || q.sl.row == 0 || q.sl.row == 1) { if (q.sl.col == 64) q.sl.y = -1; }
+        placed.erase(std::remove_if(placed.begin(), placed.end(), [](const Placed &q) { return q.sl.row == -2; }), placed.end());
     }
     const float u = CELL * s;                               // one LCD pixel on screen
     // the pixel grid (gaps between the lit pixels) only shows when the pixels are big on the real screen

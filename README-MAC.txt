@@ -58,7 +58,7 @@ OPTION B - build it yourself on your Mac (sections 1 to 3).
 
    Boot from SCSI: Options > SCSI drives > Boot from > "SCSI drive (no floppy at start)" starts with an empty
    floppy drive and boots from a SCSI drive that has the OS (or: open the app with --boot scsi). A red LED
-   above the floppy drive blinks on SCSI activity.
+   above the floppy drive blinks on SCSI activity (slowly while reading, fast while writing).
 
 5. The VST3 plug-in (instrument)
    - It appears as "ASR-10 Emulator" in any VST3 host (Cubase, Studio One, Reaper, Bitwig,

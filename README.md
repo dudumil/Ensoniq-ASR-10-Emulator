@@ -21,6 +21,8 @@ Available as a **Windows app** and a **VST3 instrument plug-in**.
 - Sampling from your audio interface (or a WAV file).
 - Audio Tracks, in RAM or on a SCSI disk (DiskTracks).
 - SCSI drives (ZuluSCSI-style images): hard disks and CD-ROMs, booting the OS from SCSI.
+- Import of **AKAI** (S1000/S1100) and **Roland** sample libraries from CD-ROM images on the SCSI bus
+  (e.g. `CD5.iso` in the `scsi` folder), with the OS's own translation (OS 3.00 or later; 3.53 recommended).
 - Output Expander outputs (AUX 1-3) on separate outputs of your audio interface.
 - The full rack front panel, with an on-screen keyboard, pitch and mod wheels.
 - Two display types: the original **VFD**, or a **purple graphic LCD** (View > Options > Display > Screen type). The VST3 plug-in follows the choice made in the app.

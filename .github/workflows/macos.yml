@@ -1,5 +1,5 @@
-# Builds the app and the VST3 plug-in for macOS (Apple Silicon) on a GitHub runner.
-# The files are under "Artifacts" on the run's page.
+# Builds the app and the VST3 plug-in for macOS (universal: Apple Silicon and Intel) on a GitHub
+# runner, checks them, and puts the package (ASR10-Emulator-macOS.zip) under "Artifacts" on the run's page.
 name: macOS
 on:
   workflow_dispatch:
@@ -10,17 +10,30 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Build
+      - name: Build and package
         run: ./build-mac.sh --no-install
-      - name: Package
+      - name: Check
         run: |
-          cd dist
-          ditto -c -k --keepParent ASR-10.app ASR-10-app.zip
-          ditto -c -k --keepParent ASR10.vst3 ASR10-vst3.zip
+          set -e
+          P=dist/ASR10-macOS
+          EXE=$(ls "$P/ASR-10.app/Contents/MacOS/" | head -1)
+          echo "== architectures"
+          lipo -info "$P/ASR-10.app/Contents/MacOS/$EXE"
+          lipo -info "$P/VST3/ASR10.vst3/Contents/MacOS/"*
+          lipo "$P/ASR-10.app/Contents/MacOS/$EXE" -verify_arch arm64 x86_64
+          echo "== linked libraries (only the system's)"
+          otool -L "$P/ASR-10.app/Contents/MacOS/$EXE"
+          if otool -L "$P/ASR-10.app/Contents/MacOS/$EXE" | tail -n +2 | grep -v -E "^[[:space:]]+(/System/|/usr/lib/)"; then echo "non-system library"; exit 1; fi
+          echo "== signatures"
+          codesign --verify --deep --strict --verbose=2 "$P/ASR-10.app"
+          codesign --verify --deep --strict --verbose=2 "$P/VST3/ASR10.vst3"
+          echo "== the app starts (arm64, and x86_64 under Rosetta when available)"
+          "$P/ASR-10.app/Contents/MacOS/$EXE" --help > help.txt; head -3 help.txt
+          if arch -x86_64 /usr/bin/true 2>/dev/null; then arch -x86_64 "$P/ASR-10.app/Contents/MacOS/$EXE" --help > help.txt; head -3 help.txt; else echo "(no Rosetta on this runner)"; fi
+          echo "== package contents"
+          find "$P" -maxdepth 2 | sort
+          if find "$P" -name "*.bin" -o -name "*.img" -o -name "*.iso" | grep .; then echo "ROM or disk image in the package"; exit 1; fi
       - uses: actions/upload-artifact@v4
         with:
           name: ASR10-macOS
-          path: |
-            dist/ASR-10-app.zip
-            dist/ASR10-vst3.zip
-            dist/asr10-cli
+          path: dist/ASR10-Emulator-macOS.zip

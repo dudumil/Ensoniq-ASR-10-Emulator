@@ -1,22 +1,32 @@
-ENSONIQ ASR-10 EMULATOR FOR macOS (Apple Silicon) - APP AND VST3 PLUG-IN
-========================================================================
+ENSONIQ ASR-10 EMULATOR FOR macOS (Apple Silicon and Intel) - APP AND VST3 PLUG-IN
+==================================================================================
 
-This package contains the source code. There are two ways to get the app and the plug-in:
+This file covers the ready-made package (ASR10-Emulator-macOS.zip) and building from the source code.
+The app and the plug-in are universal: they run on Apple Silicon and on Intel Macs (macOS 11 or later).
 
-OPTION A - no tools to install (recommended): build it on GitHub
-   1. Open  https://github.com/dudumil/Ensoniq-ASR-10-Emulator/actions  in a browser (sign in to GitHub), click the "macOS" workflow and
-      then "Run workflow" (or open the latest green run).
-   2. When the run is green, scroll to "Artifacts" at the bottom of the run's page and download
-      "ASR10-macOS" (a zip with ASR-10-app.zip and ASR10-vst3.zip inside; unzip both).
-   3. Drag ASR-10.app to Applications. In Terminal, once, remove the "downloaded from the internet" flag:
-         xattr -dr com.apple.quarantine /Applications/ASR-10.app
-      and copy ASR10.vst3 to ~/Library/Audio/Plug-Ins/VST3/ (same xattr command on it).
-   4. The ROMs and the OS disk are NOT in the download. Put them in a folder called "roms" (or
-      "ROM", any case) next to ASR-10.app - e.g. in Applications: /Applications/roms - or
-      inside the app (right-click > "Show Package Contents" > Contents > Resources > roms).
-      The app must have had the quarantine flag removed (step 3): otherwise macOS runs it from a
-      hidden temporary copy and the folder next to it is not seen.
-      Open the app once: the plug-in then uses the same files.
+OPTION A - ready-made package (no tools to install)
+   1. Get ASR10-Emulator-macOS.zip: from the release page, or from GitHub Actions
+      (https://github.com/dudumil/Ensoniq-ASR-10-Emulator/actions > "macOS" workflow > latest green run > "Artifacts" at the bottom:
+      "ASR10-macOS" holds ASR10-Emulator-macOS.zip).
+   2. Unzip it. The folder ASR10-macOS contains:
+         ASR-10.app             the app
+         roms/                  put the ROMs and the OS disk image here
+         scsi/                  SCSI disk / CD-ROM images (ZuluSCSI names: HD0.img, CD5.iso, ...)
+         VST3/ASR10.vst3        the plug-in
+         README.txt, README.md, licenses/
+      Keep the app, roms/ and scsi/ together in this folder (it can go anywhere, e.g. in Applications
+      or in Documents): the app looks for roms/ and scsi/ next to itself.
+   3. Remove the "downloaded from the internet" flag once (Terminal; drag the folder onto the window
+      after typing the command and a space to fill in the path):
+         xattr -dr com.apple.quarantine ASR10-macOS
+      Without it macOS refuses to open the app ("cannot verify ..."), or runs it from a hidden copy
+      where roms/ and scsi/ are not seen. (Instead you can open it once and choose
+      System Settings > Privacy & Security > "Open Anyway", but xattr also covers the plug-in.)
+   4. Put the ROM files (asr-648c-lo-1.5b.bin and asr-65e0-hi-1.5b.bin, or asr_lo.bin / asr_hi.bin) and os353.img in roms/, then open the app.
+      If the ROMs are still not found, the app lists the folders it searched and offers
+      "Choose folder...": pick the folder with the ROMs; it is remembered.
+   5. Plug-in: copy VST3/ASR10.vst3 to ~/Library/Audio/Plug-Ins/VST3/ (Finder: Go > Go to Folder...).
+      Open the app once first: the plug-in then uses the same ROMs, OS disk and scsi folder.
    Skip to section 4 below.
 
 OPTION B - build it yourself on your Mac (sections 1 to 3).
@@ -44,6 +54,7 @@ OPTION B - build it yourself on your Mac (sections 1 to 3).
    When it finishes:
      dist/ASR-10.app   -> drag it to Applications
      dist/asr10-cli    -> command line tool
+     dist/ASR10-Emulator-macOS.zip -> the package of option A (the app, VST3/, roms/, scsi/, READMEs, licenses)
      the plug-in is installed in ~/Library/Audio/Plug-Ins/VST3/ASR10.vst3
 
 4. The app

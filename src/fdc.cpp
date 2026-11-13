@@ -1,5 +1,6 @@
 #include "u8file.h"
 #include "fdc.h"
+#include "ede_image.h"
 #include <cstdio>
 #include <cstring>
 
@@ -16,6 +17,10 @@ bool Fdc::load(const std::string &p) {
     disk.resize(sz);
     if (fread(disk.data(), 1, sz, f) != (size_t)sz) { fclose(f); disk.clear(); return false; }
     fclose(f);
+    {   // a Giebler .EDE / .EDA image: work on the raw disk, write the same format back
+        std::vector<uint8_t> raw;
+        if (ede::decode(disk, raw, ede_header)) disk.swap(raw); else ede_header.clear();
+    }
     path = p; dirty = false;
     geometry();
     changed = true;
@@ -35,7 +40,10 @@ bool Fdc::save() {
     if (path.empty() || !dirty) return true;
     FILE *f = u8fopen(path.c_str(), "wb");
     if (!f) return false;
-    fwrite(disk.data(), 1, disk.size(), f); fclose(f);
+    std::vector<uint8_t> packed;
+    if (!ede_header.empty()) packed = ede::encode(disk, ede_header);
+    const std::vector<uint8_t> &out = packed.empty() ? disk : packed;
+    fwrite(out.data(), 1, out.size(), f); fclose(f);
     dirty = false;
     return true;
 }

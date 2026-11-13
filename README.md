@@ -77,9 +77,15 @@ The ROM and the operating system belong to Ensoniq/E-mu and are **not included**
 
 ## Using it
 
-- **Disks:** drag a floppy image (`.img`) onto the window, or one or more instruments (`.efa`/`.efe`):
+- **Disks:** drag a floppy image (`.img`, or a Giebler `.ede` / `.eda` image) onto the window, or one or more instruments (`.efa`/`.efe`):
   they are put on a temporary floppy in the drive, then use LOAD as usual. The drive's eject button
   ejects. File › Save Disk Changes (Ctrl+S) writes the floppy back to its image.
+- **Record a song to WAV:** File › Record Song to WAV… (Ctrl+W; ⇧⌘R on the Mac). Choose the folder; the
+  recording then waits and starts when you press **Play** on the sequencer, and ends when the song
+  ends or you press Stop (it goes on until the sound has died away). The file is 24-bit stereo at the
+  audio device's sample rate and gets the name of the song / sequence, as shown on the Seq•Song page
+  (open that page once so that the name is known; otherwise the file gets a generic name).
+  Ctrl+W again cancels or stops.
 - **Power:** hold the Power button for about 1 s to restart the machine.
 - **Boot from SCSI:** Options › SCSI drives › *Boot from* › "SCSI drive (no floppy at start)" starts the
   machine with an empty floppy drive, booting from a SCSI drive that has the OS on it (command line:
@@ -131,7 +137,8 @@ sees new drives.
 
 - Outputs: Main plus AUX 1-3 (enable them in the host to get them separately); a stereo input for
   sampling and Audio Tracks; MIDI In and MIDI Out.
-- The editor is just the panel: drag disk images or `.efa`/`.efe` files onto it, use the drive's eject
+- The editor is just the panel: click the drive slot to choose a disk image (`.img`, `.ede`, `.eda`) or
+  instrument files, or drag them onto the panel (where the host passes drops on to plug-ins), use the drive's eject
   button and the Power button, as in the app.
 - The plug-in has no settings of its own: change them in the app and the plug-in follows.
 - The project stores the volume and the disks in use; on reopening the ASR-10 boots again with them

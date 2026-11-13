@@ -33,6 +33,7 @@ public:
     std::function<void(bool)> irq_cb;
     bool log = false;
     std::string path;
+    std::vector<uint8_t> ede_header;    // not empty: the file is a Giebler .EDE/.EDA image (see ede_image.h)
     bool dirty = false;
 
 private:

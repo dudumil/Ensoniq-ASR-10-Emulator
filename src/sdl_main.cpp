@@ -11,6 +11,7 @@
 #include "audio_io.h"
 #include "search_dirs.h"
 #include "settings.h"
+#include "wav_recorder.h"
 #include <SDL.h>
 #include <cstdio>
 #include <cstdlib>
@@ -301,6 +302,8 @@ int main(int argc, char **argv) {
     double shot_at = -1, quit_at = -1; std::string shot_path;   // testing aids
     bool open_opts_at_start = false;
     std::vector<std::pair<double,int>> auto_buttons;
+    std::string record_dir;
+    std::vector<std::pair<double, std::string>> timed_inserts;
     for (int i = 1; i < argc; i++) {
         std::string a = argv[i];
         auto next = [&]() { return std::string(i + 1 < argc ? argv[++i] : ""); };
@@ -327,6 +330,8 @@ int main(int argc, char **argv) {
         else if (a == "--scale") scale = atof(next().c_str());
         else if (a == "--screenshot") { shot_at = atof(next().c_str()); shot_path = next(); }
         else if (a == "--quit-after") quit_at = atof(next().c_str());
+        else if (a == "--insert") { std::string v = next(); size_t c = v.find(':'); if (c != std::string::npos) timed_inserts.push_back({ atof(v.substr(0, c).c_str()), v.substr(c + 1) }); }   // test: T:image
+        else if (a == "--record-wav") record_dir = next();   // arm File > Record Song to WAV with this folder
         else if (a == "--open-options") open_opts_at_start = true;
         else if (a == "--press") { double t; int i; if (sscanf(next().c_str(), "%lf:%d", &t, &i) == 2) auto_buttons.push_back({t, i}); }
         else if (a == "-h" || a == "--help") { usage(); return 0; }
@@ -637,6 +642,9 @@ int main(int argc, char **argv) {
     std::string audio_status;
     const int64_t slice = 16000;                    // 1 ms of CPU time
 
+    WavRecorder rec;                                // used with mmx held (the emulation thread, and here)
+    rec.fallback_name = "ASR-10 recording";
+    if (!record_dir.empty()) rec.arm(record_dir);
     auto render = [&](float *out, int ch, int frames) {
         std::fill(out, out + (size_t)ch * frames, 0.0f);
         const int mp = route_main * 2;
@@ -680,6 +688,12 @@ int main(int argc, char **argv) {
         }
         feed_wav();
         m.run(slice);
+        {   // File > Record Song to WAV: the main output, while the sequencer runs (PLAY annunciator,
+            // or REC / ODUB without STOP)
+            const auto &pn = m.panel;
+            bool playing = pn.ind3[12] != 0 || ((pn.ind3[3] || pn.ind3[14]) && !pn.ind3[11]);
+            rec.process(m.audio.data(), m.audio.size() / 2, (int)m.out_rate, playing, pn.disp);
+        }
         if (audio_active) {
             size_t n = m.audio.size() / 2;
             bool sep = m.audio_aux.size() >= n * 6;
@@ -1073,7 +1087,7 @@ int main(int argc, char **argv) {
     bool kb_down[KEYS] = {};
     int velocity = 100;
     std::string status = disk.empty() ? (boot_scsi ? "Booting from SCSI: no floppy in the drive (drop a disk image on the window to insert one)"
-                                                   : "No OS disk found in the roms folder: drop a disk image (.img) or an instrument (.efa/.efe) on the window")
+                                                   : "No OS disk found in the roms folder: drop a disk image (.img, .ede, .eda) or an instrument (.efa/.efe) on the window")
                                       : "Disk: " + disk;
     uint32_t status_t = SDL_GetTicks();
     auto set_in_level = [&](float v, bool save) {
@@ -1147,7 +1161,7 @@ int main(int argc, char **argv) {
         uint32_t scsi_act = 0, scsi_wr = 0;
         float in_lvl[2];
         std::string scsi_sum, disk_path;
-        bool want_options = false, want_apply = false, want_kb_toggle = false, want_open = false;
+        bool want_options = false, want_apply = false, want_kb_toggle = false, want_open = false, want_record = false;
         {
             // collect the events first: on Windows SDL_PollEvent can block while the window is
             // dragged, and the machine must not stay locked meanwhile
@@ -1168,6 +1182,7 @@ int main(int argc, char **argv) {
                     case NativeMenu::EXIT: quit = true; break;
                     case NativeMenu::TOGGLE_KEYBOARD: want_kb_toggle = true; break;
                     case NativeMenu::OPTIONS: if (opts_open) opts_open = false; else want_options = true; break;
+                    case NativeMenu::RECORD_WAV: want_record = true; break;
                     default: break;
                     }
                     continue;
@@ -1276,7 +1291,7 @@ int main(int argc, char **argv) {
                         if (a == RackUI::POWER) { power_held = true; power_down_t = SDL_GetTicks(); break; }
                         if (a == RackUI::EJECT) {
                             if (m.fdc.has_disk()) { save_disk(); m.eject_disk(); status = "Disk ejected"; }
-                            else status = "The drive is empty: drop a disk image (.img) or an instrument (.efa/.efe) on the window";
+                            else status = "The drive is empty: drop a disk image (.img, .ede, .eda) or an instrument (.efa/.efe) on the window";
                             status_t = SDL_GetTicks(); break;
                         }
                         if (a == RackUI::DRIVE) {
@@ -1347,6 +1362,7 @@ int main(int argc, char **argv) {
                     if (down && kc == SDLK_F9) { toggle_keyboard(); break; }
                     if (down && (e.key.keysym.mod & KMOD_CTRL)) {
                         if (kc == SDLK_o) want_options = true;
+                        if (kc == SDLK_w) want_record = true;
                         if (kc == SDLK_e) { save_disk(); m.eject_disk(); status = "Disk ejected"; status_t = SDL_GetTicks(); }
                         if (kc == SDLK_s) save_disk();
                         if (kc == SDLK_f) { m.fx_enabled = !m.fx_enabled; status = m.fx_enabled ? "Effects on" : "Effects off (dry sound)"; status_t = SDL_GetTicks(); }
@@ -1389,6 +1405,7 @@ int main(int argc, char **argv) {
             // test hooks (emulated time)
             double emu_t = m.cycles() / m.cpu_clock;
             if (input_wav_at >= 0 && emu_t >= input_wav_at && !wav_in.empty()) { wav_pos = 0; wav_playing = true; input_wav_at = -1; }
+            for (auto &ti : timed_inserts) if (ti.first >= 0 && emu_t >= ti.first) { ti.first = -1; open_image(ti.second); }
             for (auto &ab : auto_buttons) {
                 if (ab.first >= 0 && emu_t >= ab.first) {
                     if (ab.second == 1000) want_options = true;
@@ -1419,6 +1436,9 @@ int main(int argc, char **argv) {
             for (int l = 0; l < 4; l++) audio_leds[l] = m.audio_led(l);
             for (int c2 = 0; c2 < 2; c2++) { in_lvl[c2] = m.in_peak_ch[c2]; m.in_peak_ch[c2] = 0; }
             scsi_sum = scsi_fitted ? m.scsi.summary() : std::string("off");
+            // WAV recording: what happened, or what it is doing, stays in the status line
+            if (!rec.event.empty()) { status = rec.event; rec.event.clear(); status_t = SDL_GetTicks(); }
+            else if (rec.active()) { status = rec.status(); status_t = SDL_GetTicks(); }
             if (shot_at >= 0 && emu_t >= shot_at) shot_at = -2;      // take it after drawing
             if (open_opts_at_start) { open_opts_at_start = false; open_options(); apply_layout(); }
         }
@@ -1426,6 +1446,14 @@ int main(int argc, char **argv) {
         if (want_open) {                       // the file dialog runs with the machine unlocked
             std::string p = nmenu.open_disk_dialog();
             if (!p.empty()) { std::lock_guard<std::mutex> g(mmx); open_image(p); }
+        }
+        if (want_record) {                     // File > Record Song to WAV: arm, or stop / cancel
+            bool was_active;
+            { std::lock_guard<std::mutex> g(mmx); was_active = rec.active(); if (was_active) rec.stop(); }
+            if (!was_active) {
+                std::string d = nmenu.choose_folder_dialog("Folder for the WAV file (it gets the name of the song / sequence)");
+                if (!d.empty()) { std::lock_guard<std::mutex> g(mmx); rec.arm(d); }
+            }
         }
         if (want_kb_toggle) toggle_keyboard();
         apply_layout();                        // the keyboard strip comes back while the options are open
@@ -1634,6 +1662,7 @@ int main(int argc, char **argv) {
     }
     stop = true;
     emu.join();
+    rec.finish();                                   // a recording in progress is kept
     aio.close();
     midi.close();
     {

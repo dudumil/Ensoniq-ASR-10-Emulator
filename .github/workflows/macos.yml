@@ -43,21 +43,38 @@ jobs:
           cp -R "$P/AU/ASR10.component" ~/Library/Audio/Plug-Ins/Components/
           killall -9 AudioComponentRegistrar 2>/dev/null || true
           sleep 2
-          auval -a | grep -i "eps" || true
+          auval -a | grep -i "asr" || true
           auval -v aumu Asr1 A10e
           echo "== installer"
           pkgutil --check-signature dist/ASR10-Emulator-macOS-Installer.pkg || true
           pkgutil --payload-files dist/ASR10-Emulator-macOS-Installer.pkg | head -50 || true
           mkdir -p pkgx && cd pkgx && xar -xf ../dist/ASR10-Emulator-macOS-Installer.pkg && ls -R | head -40 && cat Distribution | head -60
           cd ..
-          echo "== the installer installs (all parts), then the uninstaller's script removes it"
+          echo "== disk image"
+          hdiutil attach dist/ASR10-Emulator-macOS-Installer.dmg -mountpoint /tmp/dmg -nobrowse
+          ls -la@ /tmp/dmg; GetFileInfo "/tmp/dmg/Install ASR-10 Emulator.pkg" || true
+          cmp "/tmp/dmg/Install ASR-10 Emulator.pkg" dist/ASR10-Emulator-macOS-Installer.pkg
+          hdiutil detach /tmp/dmg
+          echo "== without the ROMs and the OS disk the installer stops"
+          if sudo installer -pkg dist/ASR10-Emulator-macOS-Installer.pkg -target /; then echo "installed without the ROMs"; exit 1; fi
+          test ! -e "/Applications/ASR-10 Emulator/ASR-10.app"
+          echo "== with them (stand-in files of the right sizes) it installs; then the uninstaller's script removes it"
+          sudo mkdir -p "/Applications/ASR-10 Emulator/roms"
+          sudo mkfile -n 131072 "/Applications/ASR-10 Emulator/roms/asr_lo.bin"
+          sudo mkfile -n 131072 "/Applications/ASR-10 Emulator/roms/asr_hi.bin"
+          sudo mkfile -n 1638400 "/Applications/ASR-10 Emulator/roms/My OS.img"
           sudo installer -pkg dist/ASR10-Emulator-macOS-Installer.pkg -target /
+          ls -la "/Applications/ASR-10 Emulator/roms"
+          test -f "/Applications/ASR-10 Emulator/roms/My OS.img"
           ls -la "/Applications/ASR-10 Emulator" /Library/Audio/Plug-Ins/VST3 /Library/Audio/Plug-Ins/Components
           test -d "/Applications/ASR-10 Emulator/Uninstall ASR-10 Emulator.app"
           stat -f "%Lp %N" "/Applications/ASR-10 Emulator/roms" "/Applications/ASR-10 Emulator/scsi" | grep -c "^777" | grep -q 2
           pkgutil --pkgs | grep org.asr10emu
-          sudo /bin/sh "/Applications/ASR-10 Emulator/Uninstall ASR-10 Emulator.app/Contents/Resources/uninstall.sh" 0 "$HOME"
-          test ! -e "/Applications/ASR-10 Emulator" && test ! -e /Library/Audio/Plug-Ins/VST3/ASR10.vst3 && test ! -e /Library/Audio/Plug-Ins/Components/ASR10.component
+          sudo /bin/sh "/Applications/ASR-10 Emulator/Uninstall ASR-10 Emulator.app/Contents/Resources/uninstall.sh" 1 "$HOME"
+          test ! -e "/Applications/ASR-10 Emulator/ASR-10.app" && test -f "/Applications/ASR-10 Emulator/roms/My OS.img"
+          test ! -e /Library/Audio/Plug-Ins/VST3/ASR10.vst3 && test ! -e /Library/Audio/Plug-Ins/Components/ASR10.component
+          echo "(the user's files were kept)"; ls -R "/Applications/ASR-10 Emulator"
+          sudo rm -rf "/Applications/ASR-10 Emulator"
           if pkgutil --pkgs | grep -q org.asr10emu; then echo "receipts left"; exit 1; fi
           echo "uninstalled"
 
@@ -68,4 +85,4 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: ASR10-macOS-Installer
-          path: dist/ASR10-Emulator-macOS-Installer.pkg
+          path: dist/ASR10-Emulator-macOS-Installer.dmg

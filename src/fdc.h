@@ -3,6 +3,7 @@
 #pragma once
 #include <cstdint>
 #include <string>
+#include "hfe_image.h"
 #include <vector>
 #include <functional>
 
@@ -34,6 +35,8 @@ public:
     bool log = false;
     std::string path;
     std::vector<uint8_t> ede_header;    // not empty: the file is a Giebler .EDE/.EDA image (see ede_image.h)
+    hfe::Image hfe_img;                 // file not empty: the file is an HxC .HFE image (see hfe_image.h)
+    std::string load_error;             // why the last load() failed (an unreadable .HFE...)
     bool dirty = false;
     uint32_t activity = 0;              // counts commands and data bytes (fast disk access, see Asr10::disk_busy)
 

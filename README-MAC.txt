@@ -6,17 +6,17 @@ universal: they run on Apple Silicon and on Intel Macs (macOS 11 or later). Get 
 release page, or from GitHub Actions (https://github.com/dudumil/Ensoniq-ASR-10-Emulator/actions >
 "macOS" workflow > latest green run > "Artifacts" at the bottom).
 
-OPTION A1 - installer (ASR10-Emulator-macOS-Installer.pkg)
-   1. Open the .pkg. It is not signed by Apple: if macOS refuses to open it, right-click it > Open
-      (or System Settings > Privacy & Security > "Open Anyway").
-   2. It installs (each part can be left out with "Customize"):
-         Applications > ASR-10 Emulator        the app, roms/ and scsi/ (writable), READMEs and
+OPTION A1 - installer (ASR10-Emulator-macOS-Installer.dmg)
+   1. Open the .dmg, then "Install ASR-10 Emulator". It is not signed by Apple: if macOS refuses to open it,
+      right-click it > Open (or System Settings > Privacy & Security > "Open Anyway").
+      Have your own ROMs and OS disk ready: before installing it asks for the low and high firmware
+      (.bin) and the OS disk image (.img, .hfe, .ede or .eda), and stops without them.
+   2. It installs (the plug-ins can be left out with "Customize"):
+         Applications > ASR-10 Emulator        the app, roms/ (with your ROMs and OS disk) and scsi/, READMEs and
                                                "Uninstall ASR-10 Emulator"
          /Library/Audio/Plug-Ins/VST3/ASR10.vst3            the VST3 plug-in
          /Library/Audio/Plug-Ins/Components/ASR10.component the Audio Unit (Logic Pro, GarageBand)
-   3. Put the ROM files (asr-648c-lo-1.5b.bin and asr-65e0-hi-1.5b.bin, or asr_lo.bin / asr_hi.bin) and os353.img in
-      Applications > ASR-10 Emulator > roms, then open the app once (the plug-ins then use the same
-      ROMs, OS disk and scsi folder).
+   3. Open the app: it and the plug-ins use the ROMs and the OS disk in Applications > ASR-10 Emulator > roms.
    4. To remove it, open "Uninstall ASR-10 Emulator" in that folder: it can keep your ROMs, disk images
       and settings.
    Skip to section 4 below.
@@ -71,7 +71,7 @@ OPTION B - build it yourself on your Mac (sections 1 to 3).
      dist/ASR-10.app   -> drag it to Applications
      dist/asr10-cli    -> command line tool
      dist/ASR10-Emulator-macOS-Portable.zip  -> the package of option A2
-     dist/ASR10-Emulator-macOS-Installer.pkg -> the installer of option A1
+     dist/ASR10-Emulator-macOS-Installer.dmg -> the installer of option A1 (the .pkg is next to it)
      the plug-ins are installed in ~/Library/Audio/Plug-Ins/VST3/ASR10.vst3 and
      ~/Library/Audio/Plug-Ins/Components/ASR10.component
 

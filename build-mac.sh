@@ -2,7 +2,7 @@
 # Builds the ASR-10 emulator for macOS (universal: Apple Silicon and Intel): the "ASR-10.app" app, the
 # "ASR10.vst3" plug-in and the "ASR10.component" Audio Unit (Logic Pro), and packages them twice:
 #   dist/ASR10-Emulator-macOS-Portable.zip    a folder to unzip anywhere
-#   dist/ASR10-Emulator-macOS-Installer.pkg   an installer (with an uninstaller)
+#   dist/ASR10-Emulator-macOS-Installer.dmg   a disk image with the installer (.pkg, with an uninstaller)
 #
 # Requires:
 #   - Apple Command Line Tools (free):          xcode-select --install
@@ -66,7 +66,7 @@ codesign --force -s - dist/asr10-cli
 # folders (with their READMEs), the READMEs and the licenses. The ROMs, OS disks and disk images are
 # never put in it.
 PKG=dist/ASR10-macOS
-rm -rf "$PKG" dist/ASR10-Emulator-macOS*.zip dist/ASR10-Emulator-macOS*.pkg
+rm -rf "$PKG" dist/ASR10-Emulator-macOS*.zip dist/ASR10-Emulator-macOS*.pkg dist/ASR10-Emulator-macOS*.dmg
 mkdir -p "$PKG/VST3" "$PKG/AU" "$PKG/licenses" "$PKG/roms" "$PKG/scsi"
 cp -R dist/ASR-10.app "$PKG/"
 cp -R dist/ASR10.vst3 "$PKG/VST3/"
@@ -85,6 +85,7 @@ echo "Portable package: dist/ASR10-Emulator-macOS-Portable.zip"
 
 echo "=== 3/3  installer ==="
 installer/mac/make-pkg.sh "$PKG" "dist/ASR10-Emulator-macOS-Installer.pkg"
+installer/mac/make-dmg.sh "dist/ASR10-Emulator-macOS-Installer.pkg" "dist/ASR10-Emulator-macOS-Installer.dmg"
 
 if [ $INSTALL = 1 ]; then
     mkdir -p ~/Library/Audio/Plug-Ins/VST3

@@ -17,9 +17,19 @@ bool Fdc::load(const std::string &p) {
     disk.resize(sz);
     if (fread(disk.data(), 1, sz, f) != (size_t)sz) { fclose(f); disk.clear(); return false; }
     fclose(f);
-    {   // a Giebler .EDE / .EDA image: work on the raw disk, write the same format back
+    load_error.clear();
+    hfe_img.file.clear();
+    {   // a Giebler .EDE / .EDA image or an HxC .HFE image: work on the raw disk, write the same format back
         std::vector<uint8_t> raw;
-        if (ede::decode(disk, raw, ede_header)) disk.swap(raw); else ede_header.clear();
+        if (ede::decode(disk, raw, ede_header)) disk.swap(raw);
+        else {
+            ede_header.clear();
+            if (hfe::looks_like(disk)) {
+                hfe::Image img;
+                if (!hfe::decode(disk, raw, img, load_error)) { disk.clear(); return false; }
+                disk.swap(raw); hfe_img = std::move(img);
+            }
+        }
     }
     path = p; dirty = false;
     geometry();
@@ -42,6 +52,7 @@ bool Fdc::save() {
     if (!f) return false;
     std::vector<uint8_t> packed;
     if (!ede_header.empty()) packed = ede::encode(disk, ede_header);
+    else if (!hfe_img.file.empty()) packed = hfe::encode(disk, hfe_img);
     const std::vector<uint8_t> &out = packed.empty() ? disk : packed;
     fwrite(out.data(), 1, out.size(), f); fclose(f);
     dirty = false;

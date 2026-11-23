@@ -30,7 +30,7 @@ INSTALLER OR PORTABLE
    ENTER/YES loads the bank; then press an Instrument/Track button.
 
 WINDOW MENUS
-   File: Open Disk Image (choose an .img), Eject Disk (Ctrl+E), Save Disk
+   File: Open Disk Image (choose an .img), Eject Disk (Ctrl+Shift+E), Save Disk
          Changes (Ctrl+S), Reset (Ctrl+R), Exit.
    View: Show Keyboard (F9) shows/hides the on-screen keyboard; Options
          (Ctrl+O) opens the audio and MIDI options.
@@ -57,7 +57,7 @@ OTHER FLOPPY DISKS
    Drag an .img file onto the window (same as inserting the disk).
    Single instruments (.efa/.efe): drag one or several onto the window; they
    are put on a temporary disk that goes into the drive. Then LOAD as usual.
-   Ctrl+E ejects, Ctrl+S saves the changes to the image.
+   Ctrl+Shift+E ejects, Ctrl+S saves the changes to the image.
 
 BOOTING FROM A SCSI DRIVE
    View > Options > SCSI drives > Boot from: "SCSI drive (no floppy at start)".
@@ -157,12 +157,17 @@ or the on-screen keyboard)
    1-8 (and F1-F8) = Instrument/Track 1-8
    numeric keypad = page buttons as printed: 1 Env 1, 2 Env 2, 3 Env 3,
      4 Pitch, 5 Filters, 6 Amp, 7 LFO, 8 Wave, 9 Layer, 0 Track
-   R = RECORD (hold it and press Space to record),  Space = PLAY
+   L = LOAD,  E = EDIT,  C = COMMAND
+   G = INSTRUMENT,  H = SEQ/SONG,  Ctrl+J = SYSTEM/MIDI,  K = EFFECTS
+   Ctrl+E = FX SELECT / FX BYPASS
+   R = RECORD (hold it and press Space to record),  Space = PLAY,
+   Ctrl+Space (or Shift+Space) = STOP/CONTINUE
    arrows = Up/Down/Left/Right,  Enter = ENTER/YES,  Esc = CANCEL/NO
    up + down together = the value jumps to the middle of the range (0 in
      -99..+99, 50 in 0..99), as on the hardware. With the mouse: right-click
      one of the arrows.
-   Ctrl+F effects on/off,  F11/F12 = Audio Track A/B
+   N / M (or F11 / F12) = Audio Track A / B,  Z / X (or [ / ]) = Patch Select
+   left / right,  Ctrl+F effects on/off
    F9 = hide/show the on-screen keyboard (View > Show Keyboard)
    With the mouse: click the buttons and keys (lower = louder), drag the
    sliders and the wheels. Hold Power for ~1 s to restart; the drive button

@@ -127,12 +127,16 @@ The ROM and the operating system belong to Ensoniq/E-mu and are **not included**
 |---|---|
 | 1–8, F1–F8 | Instrument•Track buttons 1–8 |
 | numeric keypad | page buttons as printed: 1 Env 1 … 4 Pitch … 9 Layer, 0 Track |
-| R / Space | RECORD / PLAY |
+| L / E / C | LOAD / EDIT / COMMAND |
+| G / H / Ctrl+J / K | INSTRUMENT / SEQ•SONG / SYSTEM•MIDI / EFFECTS |
+| Ctrl+E | FX SELECT•FX BYPASS |
+| R / Space / Ctrl+Space (or Shift+Space) | RECORD / PLAY / STOP•CONTINUE |
 | Arrows | panel arrows |
 | Enter / Esc | ENTER•YES / CANCEL•NO |
-| F11 / F12 | Audio Track A / B |
+| N / M (or F11 / F12) | Audio Track A / B |
+| Z / X (or [ / ]) | Patch Select left / right |
 | F9 | show/hide the on-screen keyboard |
-| Ctrl+E / Ctrl+S / Ctrl+R | eject / save the floppy / reset |
+| Ctrl+Shift+E / Ctrl+S / Ctrl+R | eject / save the floppy / reset |
 | Ctrl+I | audio input on/off (for sampling) |
 
 ## SCSI drives

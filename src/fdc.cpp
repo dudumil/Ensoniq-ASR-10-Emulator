@@ -109,6 +109,7 @@ uint8_t Fdc::read(int a) {
 }
 
 void Fdc::write(int a, uint8_t v) {
+    activity++;
     if (a == 0) {
         // uPD72069 auxiliary commands
         if (log) fprintf(stderr, "[FDC] aux cmd %02x\n", v);
@@ -212,6 +213,7 @@ bool Fdc::next_sector() {
 }
 
 uint8_t Fdc::dma_read() {
+    activity++;
     if (phase != EXEC || exec_write || !byte_ready) return 0xff;
     uint8_t v = secbuf[byte_pos++];
     byte_ready = false; drq = false;
@@ -225,6 +227,7 @@ uint8_t Fdc::dma_read() {
 }
 
 void Fdc::dma_write(uint8_t v) {
+    activity++;
     if (phase != EXEC || !exec_write || !byte_ready) return;
     byte_ready = false; drq = false;
     if ((cmd[0] & 0x1f) == 0x0d) {

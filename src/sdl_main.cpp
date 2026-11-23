@@ -637,6 +637,9 @@ int main(int argc, char **argv) {
     AudioRing ring(1 << 15);
     std::atomic<bool> stop{false}, audio_active{false}, input_on{true};
     std::atomic<unsigned> target_frames{1024}, cur_rate{48000}, underruns{0};
+    // fast disk access: while a file loads / saves the machine runs flat out and its sound is dropped
+    std::atomic<bool> fast_disk{cfg.fast_disk}, turbo{false};
+    std::atomic<int> turbo_quiet{0};                // the output is allowed to run dry (no underrun count)
     std::atomic<int> route_main{0}, route_aux[3], in_rel_l{0}, in_rel_r{1};
     std::atomic<int> route_dig{-1}, in_rel_dig{-1};   // DI-10: S/PDIF output pair, input pair (first channel)
     for (auto &a : route_aux) a = -1;
@@ -653,8 +656,17 @@ int main(int argc, char **argv) {
         int ap[3]; for (int a = 0; a < 3; a++) ap[a] = route_aux[a] >= 0 ? route_aux[a] * 2 : -1;
         const int dp = route_dig >= 0 ? route_dig * 2 : -1;
         float fr[AudioRing::CH];
+        // when the ring runs dry the last frame fades out (~2 ms), and the sound fades back in: no clicks
+        static float last[AudioRing::CH] = {}, g = 1.0f;
         for (int f = 0; f < frames; f++) {
-            if (!ring.pop(fr)) { underruns++; continue; }
+            if (ring.pop(fr)) {
+                if (g < 1.0f) { g = std::min(1.0f, g + 1.0f / 96); for (float &v : fr) v *= g; }
+                memcpy(last, fr, sizeof fr);
+            } else {
+                if (!turbo_quiet) underruns++;
+                g = std::max(0.0f, g - 1.0f / 96);
+                for (int c = 0; c < AudioRing::CH; c++) fr[c] = last[c] * g;
+            }
             float *o = out + (size_t)f * ch;
             auto add = [&](int c, float v) { if (c >= 0 && c < ch) o[c] += v; };
             add(mp, fr[0]); add(mp + 1, fr[1]);
@@ -703,6 +715,10 @@ int main(int argc, char **argv) {
         }
         feed_wav();
         m.run(slice);
+        const bool fast = fast_disk && m.disk_busy();
+        turbo = fast;
+        if (fast) turbo_quiet = 100;                    // (and for ~100 ms of output after it)
+        else if (turbo_quiet > 0) turbo_quiet--;
         {   // File > Record Song to WAV: the main output, while the sequencer runs (PLAY annunciator,
             // or REC / ODUB without STOP)
             const auto &pn = m.panel;
@@ -711,7 +727,7 @@ int main(int argc, char **argv) {
         }
         // the S/PDIF output frames that go with these (the stream may run a frame apart from the main one)
         const size_t nd = std::min(m.audio.size() / 2, m.audio_dig.size() / 2);
-        if (audio_active) {
+        if (audio_active && !fast) {                    // (at full speed the sound is dropped)
             size_t n = m.audio.size() / 2;
             bool sep = m.audio_aux.size() >= n * 6;
             float fr[AudioRing::CH] = {};
@@ -732,7 +748,11 @@ int main(int argc, char **argv) {
         uint64_t last = SDL_GetPerformanceCounter();
         double pending = 0;
         while (!stop) {
-            if (audio_active) {
+            if (turbo) {                            // fast disk access: as fast as it goes
+                { std::lock_guard<std::mutex> g(mmx); step(); }
+                std::this_thread::yield();          // (lets the window thread take the machine)
+                last = SDL_GetPerformanceCounter(); pending = 0;
+            } else if (audio_active) {
                 if (ring.size() >= target_frames) { std::this_thread::sleep_for(std::chrono::microseconds(500)); last = SDL_GetPerformanceCounter(); continue; }
                 std::lock_guard<std::mutex> g(mmx);
                 step();
@@ -821,7 +841,7 @@ int main(int argc, char **argv) {
     std::vector<std::string> midi_ins, midi_outs;
     NativeMenu nmenu;
     std::string opt_msg, scsi_note;
-    enum { O_API, O_OUT, O_RATE, O_BUF, O_MAIN, O_AUX1, O_AUX2, O_AUX3, O_DOUT, O_IN, O_INL, O_INR, O_DIN, O_MIDIIN, O_MIDIOUT, O_SCSI, O_NEWSIZE, O_NEWMAKE, O_BOOT, O_DISPLAY, O_DAC, O_N };
+    enum { O_API, O_OUT, O_RATE, O_BUF, O_MAIN, O_AUX1, O_AUX2, O_AUX3, O_DOUT, O_IN, O_INL, O_INR, O_DIN, O_MIDIIN, O_MIDIOUT, O_SCSI, O_NEWSIZE, O_NEWMAKE, O_BOOT, O_DISPLAY, O_DAC, O_FAST, O_N };
     static const unsigned BUFS[] = { 32, 64, 128, 256, 512, 1024, 2048 };
     auto out_dev_info = [&](const Settings &st) -> AudioDevice {
         for (auto &d : devices_of(st.audio_api)) if (d.outputs > 0 && (d.name == st.audio_out || (st.audio_out.empty() && d.default_out))) return d;
@@ -958,6 +978,9 @@ int main(int argc, char **argv) {
         r[O_DAC].label = "D/A converters";
         r[O_DAC].items = { "TDA1541A (as the ASR-10)", "Ideal (perfect converter)" };
         r[O_DAC].sel = edit.dac_tda ? 0 : 1;
+        r[O_FAST].label = "Loading / saving";
+        r[O_FAST].items = { "Fast: full speed, no sound meanwhile", "Real speed (as the ASR-10)" };
+        r[O_FAST].sel = edit.fast_disk ? 0 : 1;
         r[O_BOOT].label = "Boot from";
         r[O_BOOT].items = { "Floppy: the OS disk image", "SCSI drive (no floppy at start)" };
         r[O_BOOT].sel = edit.boot_scsi ? 1 : 0;
@@ -987,6 +1010,7 @@ int main(int argc, char **argv) {
         case O_DISPLAY: edit.lcd = x.sel == 1; break;
         case O_DAC: edit.dac_tda = x.sel == 0; break;
         case O_BOOT: edit.boot_scsi = x.sel == 1; break;
+        case O_FAST: edit.fast_disk = x.sel == 0; break;
         case O_NEWSIZE: new_mb = NEW_SIZES[std::clamp(x.sel, 0, (int)NEW_SIZES.size() - 1)]; break;
         case O_SCSI:
             if (x.sel == 0) edit.scsi_dir.clear();
@@ -1046,6 +1070,7 @@ int main(int argc, char **argv) {
         }
         midi.apply(cfg.midi_in, cfg.midi_out);
         opt_msg = midi.error.empty() ? "" : midi.error;
+        fast_disk = cfg.fast_disk;
         cfg.save();
     };
     // layout of the options page: a faceplate-like panel with two columns of drop-down fields
@@ -1059,7 +1084,7 @@ int main(int argc, char **argv) {
         { "Input (sampler and Audio Tracks)", 1, Y0, O_IN, O_DIN },
         { "MIDI", 1, Y0 + ROW_H * 5 + 6, O_MIDIIN, O_MIDIOUT },
         { "SCSI drives (ZuluSCSI-style: HD0.img, CD5.iso ...)", 1, Y0 + ROW_H * 8 + 12, O_SCSI, O_BOOT },
-        { "Display and sound", 0, Y0 + ROW_H * 10 + 6, O_DISPLAY, O_DAC } };
+        { "Display, sound and disks", 0, Y0 + ROW_H * 10 + 6, O_DISPLAY, O_FAST } };
     auto field_rect = [&](int row) -> SDL_Rect {
         for (const Sect &sc : sects)
             if (row >= sc.first && row <= sc.last)
@@ -1089,7 +1114,7 @@ int main(int argc, char **argv) {
         drop_top = std::clamp(drop_top, 0, std::max(0, n - DROP_MAX));
     };
     // keyboard order of the fields
-    const int ORDER[O_N] = { O_API, O_OUT, O_RATE, O_BUF, O_MAIN, O_AUX1, O_AUX2, O_AUX3, O_DOUT, O_IN, O_INL, O_INR, O_DIN, O_MIDIIN, O_MIDIOUT, O_SCSI, O_NEWSIZE, O_NEWMAKE, O_BOOT, O_DISPLAY, O_DAC };
+    const int ORDER[O_N] = { O_API, O_OUT, O_RATE, O_BUF, O_MAIN, O_AUX1, O_AUX2, O_AUX3, O_DOUT, O_IN, O_INL, O_INR, O_DIN, O_MIDIIN, O_MIDIOUT, O_SCSI, O_NEWSIZE, O_NEWMAKE, O_BOOT, O_DISPLAY, O_DAC, O_FAST };
     auto order_pos = [&](int row) { for (int i = 0; i < O_N; i++) if (ORDER[i] == row) return i; return 0; };
     bool show_kb = cfg.show_keyboard;
     // window layout: keyboard strip shown or hidden (it is always there while the options are

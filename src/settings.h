@@ -31,6 +31,9 @@ struct Settings {
     // start-up: false = the OS is loaded from the OS disk image (floppy); true = no floppy at start, the machine
     // boots from a SCSI drive
     bool boot_scsi = false;
+    // fast disk access: while a file is loaded or saved (floppy or SCSI, sequencer stopped) the machine runs
+    // as fast as the computer allows, without sound (see Asr10::disk_busy)
+    bool fast_disk = true;
     // DI-10 Digital I/O board (S/PDIF): the input channel pair of the input device that is the digital
     // input, and the output pair of the output device for the digital output (0-based first channel /
     // pair index, -1 = not used). The board is fitted when either is used.

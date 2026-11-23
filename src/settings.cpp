@@ -41,6 +41,7 @@ bool Settings::load(const std::string &file) {
         else if (k == "app_dir") app_dir = v;
         else if (k == "rom_dir") rom_dir = v;
         else if (k == "boot") boot_scsi = v == "scsi";
+        else if (k == "fast_disk") fast_disk = v != "0";
         else if (k == "spdif_in") spdif_in = n > 0 ? n - 1 : -1;
         else if (k == "spdif_out") spdif_out = n > 0 ? (n - 1) / 2 : -1;
     }
@@ -70,6 +71,7 @@ bool Settings::save() const {
                "# (1 = inputs 1-2 of the input device), spdif_out = first output of the pair (1 = outs 1-2); 0 = not used\n");
     fprintf(f, "spdif_in=%d\nspdif_out=%d\n", spdif_in < 0 ? 0 : spdif_in + 1, spdif_out < 0 ? 0 : spdif_out * 2 + 1);
     fprintf(f, "# start-up: floppy = load the OS disk image into the floppy drive; scsi = no floppy, boot from a SCSI drive\nboot=%s\n", boot_scsi ? "scsi" : "floppy");
+    fprintf(f, "# 1 = files load and save at full speed (the machine runs as fast as it can, without sound, meanwhile)\nfast_disk=%d\n", fast_disk ? 1 : 0);
     fprintf(f, "# folder of the program (written by it; the VST3 plug-in looks for the ROMs and disks there)\napp_dir=%s\n", app_dir.c_str());
     fprintf(f, "# folder of the ROMs chosen when they were not found (empty = the \"roms\" folder next to the program)\nrom_dir=%s\n", rom_dir.c_str());
     fclose(f);

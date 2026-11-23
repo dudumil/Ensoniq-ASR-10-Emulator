@@ -129,6 +129,16 @@ choose another one in Options › SCSI drives.
 ASR-10's FORMAT SCSI DRIVE does it, so it is ready to use. Restart the ASR-10 (Power) so that the OS
 sees new drives.
 
+## Fast loading and saving
+
+While a file is loaded or saved (floppy or SCSI) the emulated ASR-10 runs as fast as the computer
+allows instead of at its real speed, so loads, saves and booting take a fraction of the time (booting
+from the OS disk: ~5 s instead of ~15 s). The sound is muted meanwhile (it fades out and back in).
+It stays at real speed while the sequencer plays or records, so Audio Tracks on disk and songs keep
+their timing. Options › Display, sound and disks › **Loading / saving**: *Fast* (default) or *Real
+speed*. The VST3 plug-in follows the app's choice; in a host it runs ahead with up to ~40% of each
+audio block's time, so the speed-up there is smaller.
+
 ## DI-10 Digital I/O (S/PDIF)
 
 The DI-10 was Ensoniq's digital I/O option (Crystal CS8412-CP receiver, CS8402 transmitter). In
@@ -155,7 +165,7 @@ is fitted as soon as either is used, and the ASR-10 restarts (its OS looks for t
 The outputs go through a model of the machine's Philips TDA1541A converters (16-bit words with each
 chip's small bit-weight errors, no oversampling filter so each sample is held for a whole period) and
 of the analog section after them (I/V converter, low-pass filter, coupling capacitor), then are
-resampled to the computer's rate. Options › Display and sound › **D/A converters**: *TDA1541A (as the
+resampled to the computer's rate. Options › Display, sound and disks › **D/A converters**: *TDA1541A (as the
 ASR-10)* (default) or *Ideal (perfect converter)*, which only resamples.
 
 ## VST3 plug-in

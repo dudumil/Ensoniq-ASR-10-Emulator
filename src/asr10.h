@@ -28,6 +28,16 @@ public:
     // run for the given number of CPU clocks
     void run(int64_t clocks);
     uint64_t cycles() const { return total_cycles; }
+    // Fast disk access: true while the floppy or a SCSI drive has been in use in the last second (of
+    // the machine's time) and the sequencer is stopped (PLAY / REC off: Audio Tracks on disk and songs
+    // keep their timing). The front ends then run the machine as fast as the computer allows, without
+    // its sound, so that files load and save sooner.
+    bool disk_busy() const {
+        return total_cycles - disk_clock < (uint64_t)cpu_clock && !seq_running();
+    }
+    bool seq_running() const {               // PLAY annunciator, or REC / ODUB without STOP
+        return panel.ind3[12] != 0 || ((panel.ind3[3] || panel.ind3[14]) && !panel.ind3[11]);
+    }
 
     // floppy drive
     bool insert_disk(const std::string &path);
@@ -149,6 +159,8 @@ private:
     void cs3_write8(uint32_t a, uint8_t v);
 
     uint64_t total_cycles = 0;
+    uint64_t disk_clock = 0;           // last time the floppy / SCSI was used (disk_busy)
+    uint32_t disk_act = 0;
     double otto_acc = 0, duart_acc = 0;
 public:
     DacOut dac;                        // the TDA1541A converters, and the step to out_rate

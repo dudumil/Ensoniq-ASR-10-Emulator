@@ -293,6 +293,7 @@ int main(int argc, char **argv) {
         { std::string at = "A:"; at += m.audio_led(0) ? 'Y' : '-'; at += m.audio_led(2) ? 'R' : '-';
           at += " B:"; at += m.audio_led(1) ? 'Y' : '-'; at += m.audio_led(3) ? 'R' : '-'; d1 += " {" + at + "}"; }
         d1 += " <" + m.panel.annunciators() + ">";
+        if (m.disk_busy()) d1 += " DISK";
         if (d0 != last0 || d1 != last1) {
             fprintf(stderr, "[%7.3fs] |%s|\n           |%s|\n", now, d0.c_str(), d1.c_str());
             last0 = d0; last1 = d1;

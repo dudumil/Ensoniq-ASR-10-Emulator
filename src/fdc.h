@@ -35,6 +35,7 @@ public:
     std::string path;
     std::vector<uint8_t> ede_header;    // not empty: the file is a Giebler .EDE/.EDA image (see ede_image.h)
     bool dirty = false;
+    uint32_t activity = 0;              // counts commands and data bytes (fast disk access, see Asr10::disk_busy)
 
 private:
     enum Phase { CMD, EXEC, RESULT } phase = CMD;

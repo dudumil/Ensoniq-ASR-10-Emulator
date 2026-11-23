@@ -182,7 +182,7 @@ void Asr10::reset() {
     m68k_init();
     m68k_set_cpu_type(M68K_CPU_TYPE_68000);
     m68k_pulse_reset();
-    total_cycles = 0;
+    total_cycles = 0; disk_clock = 0;
     op_pins = 0xff;
     update_tin();
 }
@@ -587,4 +587,6 @@ void Asr10::run(int64_t clocks) {
         if (ready != drive_ready) { drive_ready = ready; duart.set_ip(0, !ready); }
         duart.set_ip(2, fdc.is_hd());
     }
+    const uint32_t act = fdc.activity + scsi.activity.load(std::memory_order_relaxed);
+    if (act != disk_act) { disk_act = act; disk_clock = total_cycles; }
 }

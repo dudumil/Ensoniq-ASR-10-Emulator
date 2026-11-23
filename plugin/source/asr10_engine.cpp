@@ -8,6 +8,7 @@
 #include <cstdlib>
 #include <filesystem>
 #include <algorithm>
+#include <chrono>
 #if defined(_WIN32)
 #include <windows.h>
 #include <shlobj.h>
@@ -178,6 +179,32 @@ void Asr10Engine::process(float *const *out, const float *in_l, const float *in_
     m->audio.erase(m->audio.begin(), m->audio.begin() + (size_t)frames * 2);
     if (sep) m->audio_aux.erase(m->audio_aux.begin(), m->audio_aux.begin() + (size_t)frames * 6);
     else m->audio_aux.clear();
+
+    // Fast disk access: while a file loads or saves (sequencer stopped) the machine also runs ahead
+    // for up to ~40% of this block's duration of host time; that sound is dropped, so the outputs fade
+    // out over the first such block and back in after the last one.
+    const bool fast = fast_disk_ && m->disk_busy();
+    if (fast || turbo_prev_) {
+        for (int c = 0; c < 10; c++) {
+            if (!out[c]) continue;
+            for (int i = 0; i < frames; i++) {
+                const float t = (float)i / (float)frames;
+                out[c][i] *= fast ? (turbo_prev_ ? 0.0f : 1.0f - t) : t;
+            }
+        }
+    }
+    if (fast) {
+        using clk = std::chrono::steady_clock;
+        const auto t0 = clk::now();
+        const double budget = 0.4 * frames / fs;
+        const int64_t step = (int64_t)(m->cpu_clock / 1000);     // 1 ms of the machine's time
+        while (m->disk_busy() && std::chrono::duration<double>(clk::now() - t0).count() < budget) {
+            m->run(step);
+            m->audio.clear(); m->audio_aux.clear(); m->audio_dig.clear();
+        }
+        m->audio.clear(); m->audio_aux.clear(); m->audio_dig.clear();
+    }
+    turbo_prev_ = fast;
 }
 
 std::vector<uint8_t> Asr10Engine::take_midi_out() {
@@ -292,6 +319,7 @@ void Asr10Engine::apply_settings(Asr10 &a, bool first) {
     cfg_stamp = cfg_time(cfg);
     Settings st; st.load(cfg);
     lcd_ = st.lcd;
+    fast_disk_ = st.fast_disk;
     if (first && !input_level_set_) input_level_ = st.input_level;   // the app's Input Level pot
     a.input_gain.store(input_level_gain(input_level_.load()));
     if (st.di10() != a.di10) {                 // DI-10 fitted or removed in the app: the OS looks for it at start

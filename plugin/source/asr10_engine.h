@@ -98,6 +98,8 @@ private:
     bool boot_scsi_ = false;
     std::string os_disk;                           // the OS disk image found at start (even when booting from SCSI)
     std::atomic<bool> lcd_{false};
+    bool fast_disk_ = true;                        // fast disk access (the app's option)
+    bool turbo_prev_ = false;                      // the last block ran ahead (sound faded out)
     std::atomic<float> input_level_{2.0f / 3};
     bool input_level_set_ = false;               // set by the project (do not take the app's value)
     std::string scsi_folder;                       // chosen folder, "" = default

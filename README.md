@@ -128,7 +128,7 @@ The ROM and the operating system belong to Ensoniq/E-mu and are **not included**
 | 1–8, F1–F8 | Instrument•Track buttons 1–8 |
 | numeric keypad | page buttons as printed: 1 Env 1 … 4 Pitch … 9 Layer, 0 Track |
 | L / E / C | LOAD / EDIT / COMMAND |
-| G / H / Ctrl+J / K | INSTRUMENT / SEQ•SONG / SYSTEM•MIDI / EFFECTS |
+| G / H / J / K | INSTRUMENT / SEQ•SONG / SYSTEM•MIDI / EFFECTS |
 | Ctrl+E | FX SELECT•FX BYPASS |
 | R / Space / Ctrl+Space (or Shift+Space) | RECORD / PLAY / STOP•CONTINUE |
 | Arrows | panel arrows |

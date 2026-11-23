@@ -1232,6 +1232,7 @@ int main(int argc, char **argv) {
         case SDLK_c: return 6;        // COMMAND
         case SDLK_g: return 15;       // INSTRUMENT
         case SDLK_h: return 21;       // SEQ/SONG
+        case SDLK_j: return 27;       // SYSTEM/MIDI
         case SDLK_k: return 9;        // EFFECTS
         }
         return -1;
@@ -1453,11 +1454,10 @@ int main(int argc, char **argv) {
                         held_kbd_button[sc] = -1;
                         break;
                     }
-                    {   // Ctrl+Space (or Shift+Space) = STOP/CONTINUE, Ctrl+J = SYSTEM/MIDI, Ctrl+E = FX SELECT / BYPASS
+                    {   // Ctrl+Space (or Shift+Space) = STOP/CONTINUE, Ctrl+E = FX SELECT / BYPASS
                         const bool ctrl = (e.key.keysym.mod & KMOD_CTRL) != 0, shift = (e.key.keysym.mod & KMOD_SHIFT) != 0;
                         int cb = -1;
                         if (kc == SDLK_SPACE && (ctrl || shift)) cb = 23;
-                        else if (ctrl && !shift && kc == SDLK_j) cb = 27;
                         else if (ctrl && !shift && kc == SDLK_e) cb = 7;
                         if (cb >= 0) { held_kbd_button[sc] = cb; m.panel.button(cb, true); break; }
                     }

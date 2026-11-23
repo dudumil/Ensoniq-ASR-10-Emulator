@@ -158,7 +158,7 @@ or the on-screen keyboard)
    numeric keypad = page buttons as printed: 1 Env 1, 2 Env 2, 3 Env 3,
      4 Pitch, 5 Filters, 6 Amp, 7 LFO, 8 Wave, 9 Layer, 0 Track
    L = LOAD,  E = EDIT,  C = COMMAND
-   G = INSTRUMENT,  H = SEQ/SONG,  Ctrl+J = SYSTEM/MIDI,  K = EFFECTS
+   G = INSTRUMENT,  H = SEQ/SONG,  J = SYSTEM/MIDI,  K = EFFECTS
    Ctrl+E = FX SELECT / FX BYPASS
    R = RECORD (hold it and press Space to record),  Space = PLAY,
    Ctrl+Space (or Shift+Space) = STOP/CONTINUE

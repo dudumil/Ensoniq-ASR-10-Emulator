@@ -47,7 +47,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: ASR10-Windows-Setup
-          path: dist/ASR10-Emulator-Windows-Setup.exe
+          path: dist/ASR10-Emulator-Windows-Setup.zip
   test:
     needs: build
     runs-on: windows-latest
@@ -59,6 +59,11 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
+          Expand-Archive ASR10-Emulator-Windows-Setup.zip -DestinationPath .
+          Get-ChildItem -Recurse ASR10-Emulator-Windows-Setup | Select-Object FullName
+          if (-not (Test-Path "ASR10-Emulator-Windows-Setup\README.txt")) { throw "README missing" }
+          if (-not (Test-Path "ASR10-Emulator-Windows-Setup\licenses\NSIS-LICENSE.txt")) { throw "NSIS licence missing" }
+          Copy-Item "ASR10-Emulator-Windows-Setup\ASR10-Emulator-Windows-Setup.exe" .
           $dir = "$env:ProgramFiles\ASR-10 Emulator"
           $vst = "$env:CommonProgramFiles\VST3\ASR10.vst3"
           # without the ROMs and the OS disk the installer does not go on
@@ -72,7 +77,7 @@ jobs:
           $p = Start-Process -Wait -PassThru -FilePath .\ASR10-Emulator-Windows-Setup.exe -ArgumentList "/S", "/ROMLO=$PWD\lo.bin", "/ROMHI=$PWD\hi.bin", "/OS=`"$PWD\My OS.img`""
           "exit code: $($p.ExitCode)"
           Get-ChildItem -Recurse $dir | Select-Object FullName
-          foreach ($f in "asr10.exe", "asr10-cli.exe", "README.txt", "Uninstall.exe", "roms\README.txt", "scsi\README.txt", "licenses\GPL-3.0.txt", "roms\asr_lo.bin", "roms\asr_hi.bin", "roms\My OS.img") {
+          foreach ($f in "asr10.exe", "asr10-cli.exe", "README.txt", "Uninstall.exe", "roms\README.txt", "scsi\README.txt", "licenses\GPL-3.0.txt", "licenses\NSIS-LICENSE.txt", "roms\asr_lo.bin", "roms\asr_hi.bin", "roms\My OS.img") {
             if (-not (Test-Path "$dir\$f")) { throw "missing $f" }
           }
           if (-not (Test-Path "$vst\Contents\x86_64-win\ASR10.vst3")) { throw "VST3 missing" }

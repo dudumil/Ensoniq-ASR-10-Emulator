@@ -66,8 +66,8 @@ if(ASR10_GUI)
       MACOSX_BUNDLE TRUE
       OUTPUT_NAME "ASR-10"
       MACOSX_BUNDLE_INFO_PLIST ${CMAKE_CURRENT_SOURCE_DIR}/src/mac/Info.plist.in
-      MACOSX_BUNDLE_SHORT_VERSION_STRING "0.9"
-      MACOSX_BUNDLE_BUNDLE_VERSION "0.9")
+      MACOSX_BUNDLE_SHORT_VERSION_STRING "1.0"
+      MACOSX_BUNDLE_BUNDLE_VERSION "1.0")
     target_sources(asr10 PRIVATE src/mac/asr10.icns src/mac/menu_mac.mm)
     target_link_libraries(asr10 "-framework Cocoa")
     set_source_files_properties(src/mac/asr10.icns PROPERTIES MACOSX_PACKAGE_LOCATION Resources)

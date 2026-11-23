@@ -32,27 +32,38 @@ for both.
 
 ## Download
 
-Get the latest release from the [Releases](../../releases) page.
+Get the latest release from the [Releases](../../releases) page. Each system has an **installer**
+(with an uninstaller) and a **portable** package (a folder to unzip anywhere, nothing installed).
 
-**Windows** (64-bit): **ASR10-Emulator-Windows.zip**
+| | Installer | Portable |
+|---|---|---|
+| **Windows** (64-bit) | `ASR10-Emulator-Windows-Setup.exe` | `ASR10-Emulator-Windows-Portable.zip` |
+| **macOS** (Apple Silicon and Intel, 11 or later) | `ASR10-Emulator-macOS-Installer.pkg` | `ASR10-Emulator-macOS-Portable.zip` |
+
+**Windows installer:** the program goes in `C:\Program Files\ASR-10 Emulator` (with its `roms` and `scsi`
+folders, which the installer makes writable for you), the VST3 plug-in in
+`C:\Program Files\Common Files\VST3` (optional), plus Start menu shortcuts (one opens the `roms` folder).
+Remove it with Settings › Apps or the Start menu's *Uninstall ASR-10 Emulator*: it asks whether to keep
+your ROMs, disk images and settings.
+
+**macOS installer:** the app goes in Applications › **ASR-10 Emulator** (with its `roms` and `scsi`
+folders and an uninstaller), the VST3 plug-in in `/Library/Audio/Plug-Ins/VST3` and the **Audio Unit**
+(Logic Pro, GarageBand) in `/Library/Audio/Plug-Ins/Components`; *Customize* lets you leave parts out. The
+installer is not signed by Apple: if macOS refuses to open it, right-click it › **Open** (or System
+Settings › Privacy & Security › **Open Anyway**). To remove everything, open *Uninstall ASR-10 Emulator*
+in the same folder (it can keep your ROMs, disk images and settings).
+
+**Portable packages:**
 
 | File | What it is |
 |---|---|
-| `asr10.exe` | the emulator |
-| `asr10-cli.exe` | command-line version (tests, rendering to WAV) |
+| `asr10.exe` / `ASR-10.app` | the emulator |
+| `asr10-cli(.exe)` | command-line version (tests, rendering to WAV) |
 | `VST3/ASR10.vst3` | the VST3 instrument plug-in |
+| `AU/ASR10.component` (macOS) | the Audio Unit (Logic Pro, GarageBand) |
 | `roms/`, `scsi/` | where your ROMs/OS disk and SCSI disk images go |
 
-**macOS** (universal: Apple Silicon and Intel, macOS 11 or later): **ASR10-Emulator-macOS.zip**
-
-| File | What it is |
-|---|---|
-| `ASR-10.app` | the emulator |
-| `asr10-cli` | command-line version |
-| `VST3/ASR10.vst3` | the VST3 instrument plug-in |
-| `roms/`, `scsi/` | where your ROMs/OS disk and SCSI disk images go |
-
-### macOS: what you need to know
+### macOS portable package: what you need to know
 
 1. **Keep the folder together.** Unzip and keep `ASR-10.app` with the `roms` and `scsi` folders next to
    it (the folder can go anywhere, e.g. in Applications or Documents): the app looks for them there.
@@ -66,8 +77,9 @@ Get the latest release from the [Releases](../../releases) page.
    (or later in System Settings › Privacy & Security › Microphone).
 5. **Menus:** File and View are in the macOS menu bar (⌘O open disk, ⌘E eject, ⌘S save disk changes,
    ⌘R reset, ⌘K keyboard, ⌘, options). The Ctrl shortcuts listed below work too.
-6. **Plug-in:** copy `VST3/ASR10.vst3` to `~/Library/Audio/Plug-Ins/VST3/` (Finder: Go › Go to Folder…)
-   and open the app once first. More details: `README.txt` in the package.
+6. **Plug-ins:** copy `VST3/ASR10.vst3` to `~/Library/Audio/Plug-Ins/VST3/` and, for Logic Pro,
+   `AU/ASR10.component` to `~/Library/Audio/Plug-Ins/Components/` (Finder: Go › Go to Folder…), and open
+   the app once first. More details: `README.txt` in the package.
 
 ## You need your own ROM and OS disk
 
@@ -168,13 +180,19 @@ of the analog section after them (I/V converter, low-pass filter, coupling capac
 resampled to the computer's rate. Options › Display, sound and disks › **D/A converters**: *TDA1541A (as the
 ASR-10)* (default) or *Ideal (perfect converter)*, which only resamples.
 
-## VST3 plug-in
+## VST3 plug-in and Audio Unit
 
-1. Copy the whole `VST3\ASR10.vst3` folder to `C:\Program Files\Common Files\VST3` (Windows) or to
-   `~/Library/Audio/Plug-Ins/VST3/` (macOS).
+1. The installers put the plug-ins in place. From a portable package, copy the whole `VST3\ASR10.vst3`
+   folder to `C:\Program Files\Common Files\VST3` (Windows) or to `~/Library/Audio/Plug-Ins/VST3/`
+   (macOS), and on macOS `AU/ASR10.component` to `~/Library/Audio/Plug-Ins/Components/` (Logic Pro,
+   GarageBand and other Audio Unit hosts).
 2. Run the app (`asr10.exe` / `ASR-10.app`) once: the plug-in then uses the same ROMs, OS disk, SCSI folder and settings as
    the app.
-3. Rescan plug-ins in your host and load **ASR-10 Emulator** as an instrument.
+3. Rescan plug-ins in your host and load **ASR-10 Emulator** as an instrument (in Logic Pro:
+   Instrument › AU Instruments › ASR10emu › ASR-10 Emulator; Logic lists a *Multi-Output* version too
+   when it can use the extra outputs).
+- The Audio Unit is the VST3 inside Steinberg's AU wrapper (`Contents/Resources/plugin.vst3`): it works
+  the same way.
 
 - Outputs: Main plus AUX 1-3 (enable them in the host to get them separately), and S/PDIF Out when
   the app fits the DI-10; a stereo input for sampling and Audio Tracks; MIDI In and MIDI Out.
@@ -192,8 +210,12 @@ Needs a C++17 compiler, CMake and SDL2 (or `-DASR10_BUNDLED_SDL=ON` to build it 
 ```sh
 cmake -S . -B build && cmake --build build -j          # app and command-line version
 cmake -S plugin -B build-vst && cmake --build build-vst # VST3 plug-in (downloads the VST3 SDK)
-./build-mac.sh                                          # macOS: app + plug-in in dist/
+./build-mac.sh                                          # macOS: app + plug-ins + packages in dist/
 ```
+
+On macOS, `./build-mac.sh` builds the app, the VST3 and the Audio Unit and makes both packages (the
+installer with `installer/mac/make-pkg.sh`). The Windows packages are made by `installer/windows/package.sh`
+(NSIS for the installer); `.github/workflows/windows.yml` shows the whole cross-compiled build.
 
 Technical notes (emulated hardware, protocols, tests), in Portuguese: [docs/TECHNICAL-pt.md](docs/TECHNICAL-pt.md).
 
@@ -202,7 +224,8 @@ Technical notes (emulated hardware, protocols, tests), in Portuguese: [docs/TECH
 - This program is free software under the **GNU GPL v3** (`LICENSE`).
 - **Musashi** 68000 core by Karl Stenerud; **ES5506/ES5510** algorithms derived from MAME
   (BSD-3-Clause); **RtMidi/RtAudio** by Gary P. Scavone; **Steinberg ASIO SDK** (GPLv3);
-  **SDL2** (zlib); **VST3 SDK** (MIT) and **VSTGUI** (BSD-3-Clause) by Steinberg; panel and
+  **SDL2** (zlib); **VST3 SDK** (MIT) and **VSTGUI** (BSD-3-Clause) by Steinberg; the macOS Audio Unit
+  is built with Apple's **AudioUnitSDK** (Apache 2.0); panel and
   options page lettering rendered from **GNU FreeFont** FreeSans (GPLv3 with the font exception);
   the 8x8 bitmap font by Daniel Hepper (public domain). The licence texts are in `LICENSES/` (and
   next to Musashi, RtMidi and RtAudio in their folders).

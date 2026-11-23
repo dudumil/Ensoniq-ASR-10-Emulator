@@ -1,5 +1,7 @@
-# Builds the app and the VST3 plug-in for macOS (universal: Apple Silicon and Intel) on a GitHub
-# runner, checks them, and puts the package (ASR10-Emulator-macOS.zip) under "Artifacts" on the run's page.
+# Builds the app, the VST3 plug-in and the Audio Unit for macOS (universal: Apple Silicon and Intel) on a
+# GitHub runner, checks them (auval for the Audio Unit), and puts the portable package
+# (ASR10-Emulator-macOS-Portable.zip) and the installer (ASR10-Emulator-macOS-Installer.pkg) under
+# "Artifacts" on the run's page.
 name: macOS
 on:
   workflow_dispatch:
@@ -20,6 +22,8 @@ jobs:
           echo "== architectures"
           lipo -info "$P/ASR-10.app/Contents/MacOS/$EXE"
           lipo -info "$P/VST3/ASR10.vst3/Contents/MacOS/"*
+          lipo -info "$P/AU/ASR10.component/Contents/MacOS/"*
+          lipo "$P/AU/ASR10.component/Contents/MacOS/ASR10" -verify_arch arm64 x86_64
           lipo "$P/ASR-10.app/Contents/MacOS/$EXE" -verify_arch arm64 x86_64
           echo "== linked libraries (only the system's)"
           otool -L "$P/ASR-10.app/Contents/MacOS/$EXE"
@@ -27,13 +31,41 @@ jobs:
           echo "== signatures"
           codesign --verify --deep --strict --verbose=2 "$P/ASR-10.app"
           codesign --verify --deep --strict --verbose=2 "$P/VST3/ASR10.vst3"
+          codesign --verify --deep --strict --verbose=2 "$P/AU/ASR10.component"
           echo "== the app starts (arm64, and x86_64 under Rosetta when available)"
           "$P/ASR-10.app/Contents/MacOS/$EXE" --help > help.txt; head -3 help.txt
           if arch -x86_64 /usr/bin/true 2>/dev/null; then arch -x86_64 "$P/ASR-10.app/Contents/MacOS/$EXE" --help > help.txt; head -3 help.txt; else echo "(no Rosetta on this runner)"; fi
           echo "== package contents"
           find "$P" -maxdepth 2 | sort
           if find "$P" -name "*.bin" -o -name "*.img" -o -name "*.iso" | grep .; then echo "ROM or disk image in the package"; exit 1; fi
+          echo "== Audio Unit validation (auval)"
+          mkdir -p ~/Library/Audio/Plug-Ins/Components
+          cp -R "$P/AU/ASR10.component" ~/Library/Audio/Plug-Ins/Components/
+          killall -9 AudioComponentRegistrar 2>/dev/null || true
+          sleep 2
+          auval -a | grep -i "eps" || true
+          auval -v aumu Asr1 A10e
+          echo "== installer"
+          pkgutil --check-signature dist/ASR10-Emulator-macOS-Installer.pkg || true
+          pkgutil --payload-files dist/ASR10-Emulator-macOS-Installer.pkg | head -50 || true
+          mkdir -p pkgx && cd pkgx && xar -xf ../dist/ASR10-Emulator-macOS-Installer.pkg && ls -R | head -40 && cat Distribution | head -60
+          cd ..
+          echo "== the installer installs (all parts), then the uninstaller's script removes it"
+          sudo installer -pkg dist/ASR10-Emulator-macOS-Installer.pkg -target /
+          ls -la "/Applications/ASR-10 Emulator" /Library/Audio/Plug-Ins/VST3 /Library/Audio/Plug-Ins/Components
+          test -d "/Applications/ASR-10 Emulator/Uninstall ASR-10 Emulator.app"
+          stat -f "%Lp %N" "/Applications/ASR-10 Emulator/roms" "/Applications/ASR-10 Emulator/scsi" | grep -c "^777" | grep -q 2
+          pkgutil --pkgs | grep org.asr10emu
+          sudo /bin/sh "/Applications/ASR-10 Emulator/Uninstall ASR-10 Emulator.app/Contents/Resources/uninstall.sh" 0 "$HOME"
+          test ! -e "/Applications/ASR-10 Emulator" && test ! -e /Library/Audio/Plug-Ins/VST3/ASR10.vst3 && test ! -e /Library/Audio/Plug-Ins/Components/ASR10.component
+          if pkgutil --pkgs | grep -q org.asr10emu; then echo "receipts left"; exit 1; fi
+          echo "uninstalled"
+
       - uses: actions/upload-artifact@v4
         with:
-          name: ASR10-macOS
-          path: dist/ASR10-Emulator-macOS.zip
+          name: ASR10-macOS-Portable
+          path: dist/ASR10-Emulator-macOS-Portable.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ASR10-macOS-Installer
+          path: dist/ASR10-Emulator-macOS-Installer.pkg

@@ -11,8 +11,21 @@ original operating system from a floppy image, on an emulated 68000 CPU, ES5506 
 ES5510 (ESP) effects DSP, floppy controller and SCSI. Nothing of the OS is faked, so it behaves like
 the real instrument: sampling, effects, sequencer, Audio Tracks, disks.
 
-Available as an app for **Windows** and **macOS** (Apple Silicon and Intel), and as a **VST3 instrument plug-in**
-for both.
+Available as an app for **Windows** and **macOS** (Apple Silicon and Intel), as a **VST3 instrument plug-in**
+for both and as an **Audio Unit** for Logic Pro and GarageBand, with installers or as portable packages.
+
+## New in 1.0
+
+- **Installers with uninstallers** (Windows and macOS) and **portable** packages. The installers ask for
+  your ROMs and OS disk and put them where the app and the plug-ins find them.
+- **Audio Unit** for Logic Pro and GarageBand (passes Apple's `auval`).
+- **Fast loading and saving**: while a file loads or saves, the machine runs as fast as the computer
+  allows (booting ~5 s instead of ~15 s); real speed while the sequencer plays (DiskTracks keep their
+  timing).
+- **Computer keyboard shortcuts** for every panel button (see *Using it*).
+- **DI-10 Digital I/O** (S/PDIF in and out), **TDA1541A** D/A converter model, **HxC / Gotek `.hfe`**
+  disk images, blinking display text, the instrument LEDs lit while booting, as on the real unit.
+- A lighter VST3 / AU editor (only what changes on the panel is redrawn) and a faster effects processor.
 
 ## What works
 
@@ -27,7 +40,11 @@ for both.
 - Output Expander outputs (AUX 1-3) on separate outputs of your audio interface.
 - **DI-10 Digital I/O** (S/PDIF): digital sampling at 44.1 or 48 kHz from a pair of inputs of your
   interface, and the digital output on a pair of its outputs.
-- The full rack front panel, with an on-screen keyboard, pitch and mod wheels.
+- **TDA1541A** D/A converters modelled with the analog section after them (or a perfect converter).
+- Floppy images: raw `.img`, Giebler `.ede` / `.eda` and HxC / Gotek `.hfe`.
+- **Fast loading and saving** (optional), with the sequencer and DiskTracks always at real speed.
+- The full rack front panel, with an on-screen keyboard, pitch and mod wheels, and computer keyboard
+  shortcuts for every button.
 - Two display types: the original **VFD**, or a **purple graphic LCD** (View > Options > Display > Screen type). The VST3 plug-in follows the choice made in the app.
 
 ## Download
